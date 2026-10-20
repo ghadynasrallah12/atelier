@@ -23,18 +23,24 @@ export function Library({ brandId, examples }: { brandId: string; examples: Reco
   return (
     <div className="grid gap-8">
       <div><div className="sechead"><h2>Library</h2><span className="lbl">The art director's vocabulary</span></div>
-        <p className="intro">Shot, lens, light, composition, texture, camera, aesthetic, pose. Each card shows what it does, the exact line to put in a prompt, and your own images that already do it. “Use” drops it into the shoot builder; “Shoot example” generates one on your balance.</p>
+        <p className="intro">Shot, lens, light, composition, texture, camera, aesthetic, pose. Every card has a real reference shot: the same model, the same outfit, the same studio, and only that one variable changed, so you can see what the word actually does. Under it, the exact line to put in a prompt and your own images that already do it. “Use” drops it into the shoot builder; “Shoot yours” generates one with your garments, on your balance.</p>
         <div className="flex gap-2 flex-wrap mt-4">{LIB_ORDER.map((k) => <button key={k} className={"btn sm " + (sec === k ? "" : "ghost")} style={{ borderRadius: 20 }} onClick={() => setSec(k)}>{LIB[k].title}</button>)}</div></div>
       <div className="rule"><b>{S.title}.</b> {S.note}</div>
       {sec === "move" && <div className="rule" style={{ borderColor: "var(--bad)" }}><b>Three mistakes.</b> “Cinematic camera” is not an instruction. Two movements in one prompt cause jitter: split into two shots. No camera line means the model decides for you.</div>}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-4">
-        {S.items.map((it) => { const tag = tagOf(sec, it.k), ex = examples[tag] || [], slot = slotOf(sec, it.k); return (
+        {S.items.map((it) => { const tag = tagOf(sec, it.k), ex = examples[tag] || [], slot = slotOf(sec, it.k), ref = `/library/${sec}.${it.k}`; return (
           <article key={it.k} className="bg-surface border border-line grid grid-rows-[auto_1fr_auto] min-w-0">
-            <div className="diag h-[120px] grid place-items-center border-b border-line bg-sunk p-2" dangerouslySetInnerHTML={{ __html: diagram(it.d) }} />
+            <div className="relative aspect-[4/5] bg-sunk border-b border-line overflow-hidden">
+              {sec === "move"
+                ? <video src={`${ref}.mp4`} poster={`${ref}.webp`} className="w-full h-full object-cover" autoPlay muted loop playsInline preload="metadata" />
+                : <img src={`${ref}.webp`} alt={`${it.name} — reference example`} className="w-full h-full object-cover" loading="lazy" />}
+              <div className="diag absolute left-2 bottom-2 h-[64px] w-[64px] p-1.5 grid place-items-center bg-surface/90 border border-line backdrop-blur-sm" dangerouslySetInnerHTML={{ __html: diagram(it.d) }} />
+              <span className="lbl absolute right-2 top-2 px-1.5 py-0.5 bg-surface/90 border border-line" style={{ fontSize: 9 }}>Reference{sec === "move" ? " · loop" : ""}</span>
+            </div>
             <div className="p-3 grid gap-1 content-start"><div className="flex justify-between gap-2 items-baseline"><h4 className="text-base">{it.name}</h4><span className="lbl" style={{ color: it.fit === "core" ? "var(--good)" : it.fit === "ok" ? "var(--warn)" : undefined }}>{FIT_LABEL[it.fit]}</span></div>
               <div className="text-sm text-muted">{it.eff}{it.dur && <span className="lbl"> · {it.dur}</span>}</div><div className="font-mono text-[11px]" style={{ color: "var(--accent)" }}>“{it.line}”</div></div>
-            <div className="flex justify-between items-center gap-2 px-3 pb-3"><div className="flex gap-1">{ex.length ? ex.slice(0, 4).map((x, i) => <img key={i} src={x.url} alt={x.alt} title={x.alt} className="w-[30px] h-[38px] object-cover border border-line bg-sunk" loading="lazy" />) : <span className="lbl" style={{ fontSize: 10 }}>no example yet</span>}</div>
-              <div className="flex gap-1"><button className="btn sm ghost" onClick={() => use(slot, it.line)}>Use</button>{!ex.length && <button className="btn sm" onClick={() => example(tag, slot, it.line, it.name)}>Shoot example</button>}</div></div>
+            <div className="flex justify-between items-center gap-2 px-3 pb-3"><div className="flex gap-1 items-center"><span className="lbl" style={{ fontSize: 10 }}>Yours</span>{ex.length ? ex.slice(0, 3).map((x, i) => <img key={i} src={x.url} alt={x.alt} title={x.alt} className="w-[30px] h-[38px] object-cover border border-line bg-sunk" loading="lazy" />) : <span className="text-muted" style={{ fontSize: 10 }}>—</span>}</div>
+              <div className="flex gap-1"><button className="btn sm ghost" onClick={() => use(slot, it.line)}>Use</button>{!ex.length && <button className="btn sm" onClick={() => example(tag, slot, it.line, it.name)}>Shoot yours</button>}</div></div>
           </article>); })}
       </div>
       {sec === "aes" && (<>

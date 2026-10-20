@@ -5,7 +5,7 @@ An AI content studio for fashion brands. Users paste their website, get a brand 
 ## What's inside
 
 - **The House** – brand bible (written by Claude from the website), quote bank, moodboard with library tags.
-- **Library** – 74 cards: shot types, lenses, light source/direction/quality/temperature, composition, materials, camera moves, aesthetics, poses. Each with a diagram, the prompt line, and the brand's own examples. "Shoot example" generates one.
+- **Library** – 74 cards: shot types, lenses, light source/direction/quality/temperature, composition, materials, camera moves, aesthetics, poses. Each card has a real reference photo (or a looping clip for camera moves) shot with the same model, outfit and studio so only that variable changes, plus a diagram, the prompt line, and the brand's own examples. "Shoot yours" generates one with the user's garments. The reference set lives in `public/library/` and the prompts that produced it in `scripts/library-examples.json`.
 - **Models** – house models with a fixed DNA and a reference photo so the same face runs across the feed. "Write DNA from the photo" uses Claude vision.
 - **Shoot** – fill-in-the-blanks builder: drop the product photo of the top and/or pants, set fit, pose, background and the camera layer. Queued shots are submitted to Higgsfield immediately on the user's key; results are copied into the user's own storage.
 - **Hooks** – Context Lean → Scroll Stop → Contrarian Snapback hook bank, extendable by Claude.
