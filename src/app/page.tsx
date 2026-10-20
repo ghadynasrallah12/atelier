@@ -1,69 +1,30 @@
-import Image from "next/image";
+import Link from "next/link";
 
-export default function Home() {
+export default function Landing() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="mx-auto max-w-5xl px-4 py-10 grid gap-16">
+      <header className="flex items-center justify-between">
+        <div className="font-bold tracking-[.32em]">ATELIER</div>
+        <nav className="flex gap-3"><Link className="btn ghost sm" href="/login">Sign in</Link><Link className="btn sm" href="/login?mode=signup">Start free</Link></nav>
+      </header>
+      <section className="grid gap-6 max-w-3xl">
+        <span className="lbl">An AI content studio for fashion brands</span>
+        <h1 className="text-4xl md:text-6xl leading-[1.05]">Your product photos, on a model, in your brand&rsquo;s light. Every shot and reel, from one studio.</h1>
+        <p className="text-lg text-muted max-w-2xl">Atelier reads your brand into a bible, keeps a library of shots, light and camera moves, locks a house model so the same face runs across your feed, and turns a product photo into on-model images and reels. Generations run on your own Higgsfield balance, so you only pay for what you make.</p>
+        <div className="flex gap-3 flex-wrap"><Link className="btn" href="/login?mode=signup">Start a 7-day trial</Link><a className="btn ghost" href="#how">How it works</a></div>
+      </section>
+      <section id="how" className="grid md:grid-cols-3 gap-px bg-line border border-line">
+        {[["01 · The House", "Paste your website. Atelier writes the brand bible: story, voice, pillars, visual rules, eight hooks, and a quote bank. Add your moodboard."],
+          ["02 · Shoot", "Drop the product photo of the top or the pants, pick the fit, pose, background and camera from the library, and queue it. Images or 9:16 reels."],
+          ["03 · Reels & reach", "Write a direction, get three reel concepts with a hook, beats, camera lines and caption. Log results, get a plain-language post-mortem."]].map(([t, d]) => (
+          <div key={t} className="bg-surface p-6 grid gap-2"><span className="lbl">{t}</span><p>{d}</p></div>
+        ))}
+      </section>
+      <section className="grid md:grid-cols-2 gap-8 items-start">
+        <div className="panel"><span className="lbl">Pricing</span><div className="text-3xl font-semibold">$39<span className="text-base text-muted"> / month</span></div><p>Unlimited brands, the full library, house models, reels drafting, post-mortems. 7-day free trial, cancel any time.</p><p className="text-muted text-sm">Generations are billed by Higgsfield to your own API balance at their published per-image and per-second rates. Atelier never marks them up.</p></div>
+        <div className="grid gap-3"><span className="lbl">Why bring your own key</span><p>You top up a Higgsfield API balance from $5, paste the key once, and every image or reel is deducted at cost. No bundles, no credit packs, no surprise bills at month end. Failed generations are free.</p><p className="text-muted">Drafting, onboarding and post-mortems use Claude on our side and are included in the subscription.</p></div>
+      </section>
+      <footer className="lbl py-8">Atelier · built for small fashion houses</footer>
+    </main>
   );
 }
