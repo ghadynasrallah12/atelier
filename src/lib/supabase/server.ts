@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 /** Per-request client that carries the signed-in user's session (RLS applies). */
 export async function supabaseServer() {
@@ -26,17 +27,18 @@ export function supabaseAdmin() {
   });
 }
 
-export async function requireUser() {
+/** Deduplicated per request: layout and page share one auth round trip. */
+export const requireUser = cache(async () => {
   const sb = await supabaseServer();
   const { data } = await sb.auth.getUser();
   if (!data.user) throw new Error("unauthenticated");
   return { sb, user: data.user };
-}
+});
 
-/** Loads a brand the current user owns, or throws. */
-export async function requireBrand(brandId: string) {
+/** Loads a brand the current user owns, or throws. Deduplicated per request. */
+export const requireBrand = cache(async (brandId: string) => {
   const { sb, user } = await requireUser();
   const { data: brand } = await sb.from("brands").select("*").eq("id", brandId).single();
   if (!brand) throw new Error("not found");
   return { sb, user, brand };
-}
+});
