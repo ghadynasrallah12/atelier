@@ -38,7 +38,7 @@ export function Models({ brandId, models: m0, mood }: { brandId: string; models:
         <p className="intro">A house model has a fixed DNA (biology only: face, skin, hair, build) that goes into every prompt unchanged, plus a reference photo the generator copies. Pick one in the shoot builder and the same person runs across your whole feed.</p></div>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
         {models.map((m) => { const src = refUrl(m); return (
-          <article key={m.id} className="bg-surface border border-line grid grid-cols-[96px_1fr] min-w-0">
+          <article key={m.id} className="card grid grid-cols-[96px_1fr] min-w-0">
             {src ? <img src={src} alt={m.name} className="w-24 h-32 object-cover bg-sunk" /> : <div className="w-24 h-32 bg-sunk grid place-items-center lbl text-center p-2">no reference</div>}
             <div className="p-3 grid gap-1 content-start min-w-0">
               <div className="flex justify-between gap-2"><h4 className="text-base">{m.name}</h4><span className="lbl">{m.look}</span></div>

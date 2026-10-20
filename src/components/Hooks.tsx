@@ -22,7 +22,7 @@ export function Hooks({ brandId, hooks: h0, pillars }: { brandId: string; hooks:
     <div className="grid gap-8">
       <div><div className="sechead"><h2>Hooks</h2><span className="lbl">{hooks.length} hooks</span></div>
         <p className="intro">The first 1.5 seconds. Each hook has three layers: the spoken or on-screen line, the visual under it, and the two-word text card.</p></div>
-      <div className="grid md:grid-cols-3 gap-px bg-line border border-line">
+      <div className="grid md:grid-cols-3 gap-px bg-line border border-line rounded-xl overflow-hidden">
         {[["1 · Context lean", "Start inside their world", "A sentence they already agree with or recognise."], ["2 · Scroll stop", "Break the pattern", "A claim, a number or an image that doesn't fit."], ["3 · Contrarian snapback", "Promise the payoff", "Why they should stay to the end: the reveal, the meaning, the piece."]].map(([a, b, c]) => <div key={a} className="bg-surface p-4 grid gap-1"><span className="lbl">{a}</span><b>{b}</b><p className="text-sm text-muted">{c}</p></div>)}
       </div>
       <form onSubmit={add} className="panel max-w-3xl">

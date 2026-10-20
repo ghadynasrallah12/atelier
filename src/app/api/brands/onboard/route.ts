@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { handler, json, fail } from "@/lib/api";
-import { requireUser } from "@/lib/supabase/server";
+import { requireAccess } from "@/lib/supabase/server";
 import { askJSON } from "@/lib/claude";
 import type { Bible } from "@/lib/context";
 
@@ -18,7 +18,7 @@ async function fetchPage(url: string) {
 
 /** Reads a brand's website into a bible with Claude, then creates the brand. */
 export const POST = handler(async (req: Request) => {
-  const { sb, user } = await requireUser();
+  const { sb, user } = await requireAccess();
   const body = z.object({ website: z.string().optional(), name: z.string().optional(), notes: z.string().optional() }).parse(await req.json());
   let site = "", pages: string[] = [];
   let website = (body.website || "").trim();

@@ -12,6 +12,8 @@ export function handler<T extends unknown[]>(fn: (...args: T) => Promise<Respons
       const msg = (e as Error).message || "error";
       if (msg === "unauthenticated") return fail("Sign in first.", 401);
       if (msg === "not found") return fail("Not found.", 404);
+      if (msg === "locked") return fail("Your account has no access to the studio yet. Get access in Settings.", 402);
+      if (msg === "forbidden") return fail("Admins only.", 403);
       if (e instanceof z.ZodError) return fail(e.issues.map((i) => i.path.join(".") + ": " + i.message).join("; "), 400);
       console.error(e);
       return fail(msg, 500);

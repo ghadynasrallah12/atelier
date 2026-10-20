@@ -86,7 +86,7 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
       <div className="grid lg:grid-cols-[minmax(0,1fr)_300px] gap-8 items-start">
         <div className="grid gap-5 min-w-0">
           <div className="flex gap-3 flex-wrap items-center">
-            <div className="inline-flex border border-ink rounded-sm">{(["image", "reel"] as const).map((k) => <button key={k} type="button" className="px-4 py-2 font-mono text-xs uppercase tracking-widest" style={{ background: S.kind === k ? "var(--ink)" : "transparent", color: S.kind === k ? "var(--bg)" : "var(--ink)" }} onClick={() => setS({ ...S, kind: k })}>{k}</button>)}</div>
+            <div className="inline-flex border border-line rounded-full overflow-hidden">{(["image", "reel"] as const).map((k) => <button key={k} type="button" className="px-4 py-2 font-mono text-xs uppercase tracking-widest" style={{ background: S.kind === k ? "var(--ink)" : "transparent", color: S.kind === k ? "var(--bg)" : "var(--ink)" }} onClick={() => setS({ ...S, kind: k })}>{k}</button>)}</div>
             <button className="btn ghost sm" onClick={() => setS({ ...S, v: { ...S.v, ...DEFAULT_CAM } })}>Studio camera defaults</button>
             <button className="linkbtn" onClick={() => setS(DEF())}>Clear</button>
           </div>

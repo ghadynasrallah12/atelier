@@ -83,7 +83,7 @@ export function House({ brand, quotes: q0, mood: m0 }: { brand: { id: string; na
         </div>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
           {mood.map((m) => (
-            <div key={m.id} className="bg-surface border border-line grid min-w-0">
+            <div key={m.id} className="card grid min-w-0">
               {m.url && m.kind === "image" ? <img src={m.url} alt={m.note} className="w-full aspect-[4/5] object-cover bg-sunk" loading="lazy" /> : <div className="aspect-[4/5] p-3 bg-sunk grid content-between"><span className="lbl">Reference</span><p className="font-medium">{m.note}</p>{m.url && <a className="lbl" href={m.url} target="_blank" rel="noopener">Open ↗</a>}</div>}
               <div className="p-2 grid gap-1">
                 {m.garment && <span className="lbl" style={{ color: "var(--accent)" }}>Garment · {m.garment_slot}</span>}

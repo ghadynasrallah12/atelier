@@ -3,7 +3,6 @@ import { handler, json, fail } from "@/lib/api";
 import { requireBrand, supabaseAdmin } from "@/lib/supabase/server";
 import { buildPrompt, fillBlanks, type Spec, type Ref } from "@/lib/prompt";
 import { submitShot } from "@/lib/queue";
-import { entitled } from "@/lib/billing";
 
 const Body = z.object({
   brandId: z.string().uuid(),
@@ -23,9 +22,8 @@ export const POST = handler(async (req: Request) => {
   const b = Body.parse(await req.json());
   const { sb, user, brand } = await requireBrand(b.brandId);
   if (b.status === "queued") {
-    const { data: prof } = await supabaseAdmin().from("profiles").select("plan,trial_ends_at,hf_key_hint").eq("id", user.id).single();
+    const { data: prof } = await supabaseAdmin().from("profiles").select("hf_key_hint").eq("id", user.id).single();
     if (!prof?.hf_key_hint) return fail("Add your Higgsfield API key in Settings first. Generations run on your own balance.", 402);
-    const ent = entitled(prof); if (!ent.ok) return fail(ent.reason, 402);
   }
   const spec = b.spec as Spec;
   const hasGarment = !!(spec.top || spec.bottom || b.refs.some((r) => r.role.startsWith("garment")));

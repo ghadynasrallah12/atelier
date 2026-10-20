@@ -16,7 +16,7 @@ export async function proxy(request: NextRequest) {
   });
   const { data } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
-  const isApp = path.startsWith("/brands") || path.startsWith("/b/") || path.startsWith("/settings");
+  const isApp = path.startsWith("/brands") || path.startsWith("/b/") || path.startsWith("/settings") || path.startsWith("/admin");
   if (isApp && !data.user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

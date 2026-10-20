@@ -29,7 +29,7 @@ export function Library({ brandId, examples }: { brandId: string; examples: Reco
       {sec === "move" && <div className="rule" style={{ borderColor: "var(--bad)" }}><b>Three mistakes.</b> “Cinematic camera” is not an instruction. Two movements in one prompt cause jitter: split into two shots. No camera line means the model decides for you.</div>}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-4">
         {S.items.map((it) => { const tag = tagOf(sec, it.k), ex = examples[tag] || [], slot = slotOf(sec, it.k), ref = `/library/${sec}.${it.k}`; return (
-          <article key={it.k} className="bg-surface border border-line grid grid-rows-[auto_1fr_auto] min-w-0">
+          <article key={it.k} className="card grid grid-rows-[auto_1fr_auto] min-w-0">
             <div className="relative aspect-[4/5] bg-sunk border-b border-line overflow-hidden">
               {sec === "move"
                 ? <video src={`${ref}.mp4`} poster={`${ref}.webp`} className="w-full h-full object-cover" autoPlay muted loop playsInline preload="metadata" />

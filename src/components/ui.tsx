@@ -12,7 +12,7 @@ export const useToast = () => useContext(ToastCtx);
 
 /** POST/PATCH/DELETE JSON to our API and surface errors as toasts. */
 export async function api<T = unknown>(path: string, method: string, body?: unknown, form?: FormData): Promise<T> {
-  const res = await fetch(path, { method, headers: form ? undefined : { "content-type": "application/json" }, body: form ?? (body === undefined ? undefined : JSON.stringify(body)) });
+  const res = await fetch(path, { method, headers: form || method === "GET" ? undefined : { "content-type": "application/json" }, body: form ?? (body === undefined || method === "GET" ? undefined : JSON.stringify(body)) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error || `Request failed (${res.status})`);
   return data as T;

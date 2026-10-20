@@ -5,11 +5,9 @@ export default async function BrandLayout({ children, params }: { children: Reac
   const { brandId } = await params;
   const { brand } = await requireBrand(brandId);
   return (
-    <div className="grid gap-8">
-      <div className="flex items-end justify-between gap-4 flex-wrap border-b border-line pb-3">
-        <div><span className="lbl">Studio</span><h1 className="text-2xl font-semibold tracking-wide">{brand.name}</h1></div>
-        <RoomNav brandId={brandId} />
-      </div>
+    <div className="grid gap-6">
+      <div className="md:hidden"><RoomNav brandId={brandId} /></div>
+      <div className="flex items-baseline gap-3"><span className="lbl">Studio</span><span className="text-sm font-medium">{brand.name}</span></div>
       {children}
     </div>
   );

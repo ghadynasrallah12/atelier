@@ -1,31 +1,22 @@
-import Link from "next/link";
-import { requireUser, supabaseAdmin } from "@/lib/supabase/server";
+import { requireProfile } from "@/lib/supabase/server";
 import { ToastProvider } from "@/components/ui";
-import { entitled, trialDaysLeft, billingEnabled } from "@/lib/billing";
-import { SignOut } from "@/components/SignOut";
+import { Sidebar } from "@/components/Sidebar";
+import { Locked } from "@/components/Locked";
+import { daysLeft, PRICE, billingEnabled, CONTACT } from "@/lib/billing";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user } = await requireUser();
-  const { data: prof } = await supabaseAdmin().from("profiles").select("plan,trial_ends_at,hf_key_hint").eq("id", user.id).single();
-  const ent = prof ? entitled(prof) : { ok: true, reason: "" };
-  const days = prof ? trialDaysLeft(prof) : 0;
+  const { sb, profile, access, admin } = await requireProfile();
+  const { data: brands } = await sb.from("brands").select("id,name").order("created_at");
+  const d = daysLeft(profile);
+  const accessLabel = admin ? "Admin" : profile.plan === "active" ? "Member" : d != null && access.ok ? `Access · ${d} day${d === 1 ? "" : "s"} left` : null;
   return (
     <ToastProvider>
-      <div className="min-h-screen">
-        <header className="sticky top-0 z-10 bg-bg border-b border-line">
-          <div className="mx-auto max-w-7xl px-4 flex items-center justify-between gap-4 py-3 flex-wrap">
-            <Link href="/brands" className="font-bold tracking-[.32em]">ATELIER</Link>
-            <div className="flex items-center gap-4 flex-wrap">
-              {prof && !prof.hf_key_hint && <Link href="/settings" className="lbl" style={{ color: "var(--warn)" }}>● Add your Higgsfield key</Link>}
-              {prof && billingEnabled() && prof.plan === "trial" && <Link href="/settings" className="lbl">{ent.ok ? `Trial · ${days} day${days === 1 ? "" : "s"} left` : "Trial ended"}</Link>}
-              <Link href="/settings" className="lbl">Settings</Link>
-              <SignOut />
-            </div>
-          </div>
-        </header>
-        {!ent.ok && <div className="mx-auto max-w-7xl px-4 pt-4"><div className="rule" style={{ borderColor: "var(--bad)" }}>{ent.reason} <Link href="/settings" className="underline">Go to billing.</Link></div></div>}
-        <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
-      </div>
+      <Sidebar brands={brands || []} email={profile.email || ""} admin={admin} locked={!access.ok} keyMissing={!profile.hf_key_hint} accessLabel={accessLabel} />
+      <main className="md:pl-[232px] min-h-screen">
+        <div className="mx-auto max-w-[1280px] px-4 md:px-8 py-6 md:py-8">
+          {access.ok ? children : <Locked reason={access.reason} requested={!!profile.requested_at} email={profile.email || ""} price={PRICE()} billing={billingEnabled()} contact={CONTACT()} />}
+        </div>
+      </main>
     </ToastProvider>
   );
 }
