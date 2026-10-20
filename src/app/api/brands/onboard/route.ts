@@ -18,7 +18,9 @@ async function fetchPage(url: string) {
 
 /** Reads a brand's website into a bible with Claude, then creates the brand. */
 export const POST = handler(async (req: Request) => {
-  const { sb, user } = await requireAccess();
+  const { sb, user, plan } = await requireAccess();
+  const { count } = await sb.from("brands").select("id", { count: "exact", head: true }).eq("owner", user.id);
+  if ((count || 0) >= plan.brands) return fail(`The ${plan.name} offer includes ${plan.brands} brand${plan.brands === 1 ? "" : "s"}. Upgrade in Settings to add more.`, 402);
   const body = z.object({ website: z.string().optional(), name: z.string().optional(), notes: z.string().optional() }).parse(await req.json());
   let site = "", pages: string[] = [];
   let website = (body.website || "").trim();

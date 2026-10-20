@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { entitled, isAdmin, type Profile } from "@/lib/billing";
+import { planOf, PLANS } from "@/lib/plans";
 
 /** Per-request client that carries the signed-in user's session (RLS applies). */
 export async function supabaseServer() {
@@ -36,16 +37,18 @@ export const requireUser = cache(async () => {
   return { sb, user: data.user };
 });
 
-export type ProfileRow = Profile & { id: string; email: string | null; hf_key_hint: string | null; stripe_customer_id: string | null };
+export type ProfileRow = Profile & { id: string; email: string | null; hf_key_hint: string | null; stripe_customer_id: string | null; tier: string | null };
 
 /** The signed-in user's profile plus the access verdict. Deduplicated per request. */
 export const requireProfile = cache(async () => {
   const { sb, user } = await requireUser();
-  const { data } = await supabaseAdmin().from("profiles").select("id,email,plan,trial_ends_at,access_until,requested_at,hf_key_hint,stripe_customer_id").eq("id", user.id).single();
-  const profile: ProfileRow = data || { id: user.id, email: user.email || null, plan: "trial", trial_ends_at: new Date(0).toISOString(), access_until: null, requested_at: null, hf_key_hint: null, stripe_customer_id: null };
+  const { data } = await supabaseAdmin().from("profiles").select("id,email,plan,tier,requested_tier,trial_ends_at,access_until,requested_at,hf_key_hint,stripe_customer_id").eq("id", user.id).single();
+  const profile: ProfileRow = data || { id: user.id, email: user.email || null, plan: "trial", tier: "atelier", requested_tier: null, trial_ends_at: new Date(0).toISOString(), access_until: null, requested_at: null, hf_key_hint: null, stripe_customer_id: null };
   if (!profile.email) profile.email = user.email || null;
   const access = entitled(profile);
-  return { sb, user, profile, access, admin: isAdmin(profile.email) };
+  const admin = isAdmin(profile.email);
+  const plan = admin ? PLANS[2] : planOf(profile.tier);
+  return { sb, user, profile, access, admin, plan };
 });
 
 /** Like requireProfile but throws "locked" when the account has no access. Use for anything paid. */

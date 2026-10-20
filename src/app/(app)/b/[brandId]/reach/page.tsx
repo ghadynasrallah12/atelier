@@ -1,9 +1,12 @@
-import { requireBrand } from "@/lib/supabase/server";
+import { requireBrand, requireProfile } from "@/lib/supabase/server";
+import { Upgrade } from "@/components/Upgrade";
 import { Reach } from "@/components/Reach";
 import { igEnabled } from "@/lib/instagram";
 
 export default async function ReachPage({ params, searchParams }: { params: Promise<{ brandId: string }>; searchParams: Promise<{ ig?: string; m?: string }> }) {
   const { brandId } = await params;
+  const { plan, profile } = await requireProfile();
+  if (!plan.reach) { await requireBrand(brandId); return <Upgrade room="Reach" tier={profile.tier || "atelier"} />; }
   const q = await searchParams;
   const { sb, brand } = await requireBrand(brandId);
   const [{ data: snaps }, { data: reels }, { data: account }, { data: posts }] = await Promise.all([

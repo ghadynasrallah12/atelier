@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { Plans } from "@/components/Plans";
+import { ToastProvider } from "@/components/ui";
 
 const WALL = ["shots.ecu", "pose.hood", "lsrc.neon", "shots.ews", "ldir.side", "aes.cinematic", "pose.floor", "lens.uw", "lq.warm", "comp.negative", "aes.editorial", "ldir.rim", "pose.stride", "lsrc.fire", "comp.leading", "shots.worm", "aes.retro", "tex.cotton"];
-const PRICE = process.env.NEXT_PUBLIC_PRICE || "$39 / month";
+const PRICE = process.env.NEXT_PUBLIC_PRICE || "from $29 / month";
 
 export default function Landing() {
   return (
@@ -29,9 +31,9 @@ export default function Landing() {
           <div key={t} className="panel"><span className="lbl">{t}</span><p className="text-sm text-muted">{d}</p></div>
         ))}
       </section>
-      <section className="mx-auto max-w-6xl px-4 pb-20 grid md:grid-cols-2 gap-6 items-start">
-        <div className="panel"><span className="lbl">Membership</span><div className="text-3xl font-semibold">{PRICE}</div><p className="text-sm">Unlimited brands, the full library, house models, reels drafting, Instagram reach reports and post-mortems.</p><Link className="btn accent" href="/login?mode=signup">Get access</Link></div>
-        <div className="panel"><span className="lbl">Generations · at cost</span><p className="text-sm">You top up a Higgsfield API balance from $5 at open.higgsfield.ai, paste the key once, and every image or reel is deducted at Higgsfield&rsquo;s published rate. No credit packs, no mark-up, failed generations are free.</p><p className="text-sm text-muted">Drafting, onboarding and reach reports use Claude on our side and are included.</p></div>
+      <section className="mx-auto max-w-6xl px-4 pb-20 grid gap-6">
+        <div><span className="lbl">Three offers</span><h2 className="text-3xl mt-1">Pick the size of your house</h2><p className="text-muted max-w-2xl mt-2">Every offer runs generations on your own Higgsfield key (top up from $5 at open.higgsfield.ai, no mark-up, failed generations are free). The offers differ by how many brands you run and whether you want the Reels and Reach rooms.</p></div>
+        <ToastProvider><Plans mode="landing" /></ToastProvider>
       </section>
       <footer className="mx-auto max-w-6xl px-4 py-8 lbl">Atelier · built for small fashion houses</footer>
     </main>

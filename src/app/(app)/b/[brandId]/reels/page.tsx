@@ -1,9 +1,12 @@
-import { requireBrand } from "@/lib/supabase/server";
+import { requireBrand, requireProfile } from "@/lib/supabase/server";
+import { Upgrade } from "@/components/Upgrade";
 import { loadMood, loadShots } from "@/lib/load";
 import { Reels } from "@/components/Reels";
 
 export default async function ReelsPage({ params }: { params: Promise<{ brandId: string }> }) {
   const { brandId } = await params;
+  const { plan, profile } = await requireProfile();
+  if (!plan.reels) { await requireBrand(brandId); return <Upgrade room="Reels" tier={profile.tier || "atelier"} />; }
   const { sb } = await requireBrand(brandId);
   const [{ data: briefs }, { data: reels }, { data: hooks }, { data: quotes }, { data: models }, { data: snaps }, mood, shots] = await Promise.all([
     sb.from("briefs").select("*").eq("brand_id", brandId).order("created_at", { ascending: false }),

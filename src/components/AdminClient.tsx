@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { api, useToast } from "./ui";
 
-type U = { id: string; email: string | null; plan: string; access_until: string | null; access_note: string | null; requested_at: string | null; hf_key_hint: string | null; stripe_customer_id: string | null; created_at: string; access: { ok: boolean; reason: string }; brands: string[] };
+type U = { id: string; email: string | null; plan: string; tier: string | null; requested_tier: string | null; access_until: string | null; access_note: string | null; requested_at: string | null; hf_key_hint: string | null; stripe_customer_id: string | null; created_at: string; access: { ok: boolean; reason: string }; brands: string[] };
 
 export function AdminClient({ ig, stripe }: { ig: boolean; stripe: boolean }) {
   const [users, setUsers] = useState<U[]>([]); const [busy, setBusy] = useState<string | null>(null); const toast = useToast();
@@ -13,6 +13,7 @@ export function AdminClient({ ig, stripe }: { ig: boolean; stripe: boolean }) {
     try { await api("/api/admin/grant", "POST", { userId: u.id, days, revoke }); toast(revoke ? "Access revoked." : `Granted ${days} days.`); await load(); }
     catch (err) { toast((err as Error).message); } finally { setBusy(null); }
   }
+  async function setTier(u: U, tier: string) { setBusy(u.id); try { await api("/api/admin/grant", "POST", { userId: u.id, tier }); await load(); } catch (err) { toast((err as Error).message); } finally { setBusy(null); } }
   const pending = users.filter((u) => u.requested_at && !u.access.ok);
   const fmtD = (s: string | null) => (s ? new Date(s).toLocaleDateString() : "—");
   return (
@@ -22,13 +23,14 @@ export function AdminClient({ ig, stripe }: { ig: boolean; stripe: boolean }) {
       <div className="flex gap-2 flex-wrap"><span className="chip">Stripe {stripe ? "on" : "off"}</span><span className="chip">Instagram {ig ? "on" : "off"}</span></div>
       {pending.length > 0 && (
         <div className="grid gap-3"><span className="lbl">Waiting for access</span>
-          <div className="grid gap-2">{pending.map((u) => <div key={u.id} className="panel md:flex md:items-center md:justify-between"><div><div className="font-semibold">{u.email}</div><div className="lbl">asked {fmtD(u.requested_at)} · signed up {fmtD(u.created_at)}</div></div><div className="flex gap-2 flex-wrap mt-2 md:mt-0">{[30, 90, 365].map((d) => <button key={d} className="btn sm accent" disabled={busy === u.id} onClick={() => grant(u, d)}>+{d} days</button>)}</div></div>)}</div>
+          <div className="grid gap-2">{pending.map((u) => <div key={u.id} className="panel md:flex md:items-center md:justify-between"><div><div className="font-semibold">{u.email}</div><div className="lbl">wants <b style={{ color: "var(--accent)" }}>{u.requested_tier || "atelier"}</b> · asked {fmtD(u.requested_at)} · signed up {fmtD(u.created_at)}</div></div><div className="flex gap-2 flex-wrap mt-2 md:mt-0">{[30, 90, 365].map((d) => <button key={d} className="btn sm accent" disabled={busy === u.id} onClick={() => grant(u, d)}>+{d} days</button>)}</div></div>)}</div>
         </div>
       )}
-      <div className="card overflow-x-auto"><table className="t min-w-[860px]"><thead><tr><th>Account</th><th>Access</th><th>Until</th><th>Key</th><th>Brands</th><th>Joined</th><th></th></tr></thead><tbody>
+      <div className="card overflow-x-auto"><table className="t min-w-[860px]"><thead><tr><th>Account</th><th>Access</th><th>Offer</th><th>Until</th><th>Key</th><th>Brands</th><th>Joined</th><th></th></tr></thead><tbody>
         {users.map((u) => <tr key={u.id}>
           <td><div className="font-medium">{u.email}</div>{u.access_note && <div className="lbl">{u.access_note}</div>}</td>
           <td><span className="pill" style={{ color: u.access.ok ? "var(--good)" : "var(--muted)" }}>{u.plan === "active" ? "Stripe" : u.access.ok ? "Granted" : u.requested_at ? "Waiting" : "Locked"}</span></td>
+          <td><select className="input text-xs py-1" value={u.tier || "atelier"} disabled={busy === u.id} onChange={(e) => setTier(u, e.target.value)}>{["studio", "atelier", "house"].map((t) => <option key={t} value={t}>{t}</option>)}</select></td>
           <td className="tabular-nums">{u.plan === "active" ? "subscription" : fmtD(u.access_until)}</td>
           <td>{u.hf_key_hint ? <span style={{ color: "var(--good)" }}>{u.hf_key_hint}</span> : <span className="text-muted">none</span>}</td>
           <td className="text-muted">{u.brands.join(", ") || "—"}</td>

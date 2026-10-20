@@ -15,6 +15,10 @@ An AI content studio for fashion brands. Users paste their website, get a brand 
 - **Settings** – Higgsfield key (verified with a free read-only call, AES-256-GCM encrypted at rest), membership status.
 - **Admin** (`/admin`, emails in `ADMIN_EMAILS`) – every account, who is waiting for access, grant 30/90/365 days or revoke. Use it to let customers in after they pay you directly; Stripe can do it automatically when configured.
 
+## Offers
+
+Three monthly offers (`src/lib/plans.ts`): **Studio** $29 (1 brand, library, shoot, models, hooks), **Atelier** $59 (3 brands + Reels + Reach), **House** $149 (unlimited brands). Each maps to a Stripe recurring price via `STRIPE_PRICE_STUDIO / _ATELIER / _HOUSE`; the webhook sets `profiles.tier` from the price. Without Stripe, locked users "Request <offer>" and the admin grants days on that offer from `/admin`.
+
 ## Access model
 
 Everything behind sign-in is locked until the account has access: admin (always), an active Stripe subscription, or days granted from `/admin`. Locked users see a teaser and a "Request access" button; the request shows up on `/admin`. No free trial by default (migration 0002 sets `trial_ends_at` default to now).
@@ -25,10 +29,10 @@ Next.js 16 (App Router) · Supabase (auth, Postgres with RLS, private storage) �
 
 ## Setup (about 30 minutes)
 
-1. **Supabase**: create a project. In the SQL editor run `supabase/migrations/0001_init.sql`, then `0002_access_instagram.sql`. In Authentication → URL configuration set the Site URL to your app URL and add `<app>/auth/callback` to the redirect list. Enable Email provider (password + magic link).
+1. **Supabase**: create a project. In the SQL editor run `supabase/migrations/0001_init.sql`, then `0002_access_instagram.sql`, then `0003_plans.sql`. In Authentication → URL configuration set the Site URL to your app URL and add `<app>/auth/callback` to the redirect list. Enable Email provider (password + magic link).
 2. **Anthropic**: create an API key at console.anthropic.com.
 3. **Instagram** (optional): at developers.facebook.com create an app, add the **Instagram** product, choose "API setup with Instagram login", add `<app>/api/instagram/callback` as an OAuth redirect URI, copy the Instagram app ID and secret into `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET`. Until the app passes review, only accounts you add as Instagram Testers (App roles → Roles) can connect.
-4. **Stripe** (optional at first): create a product "Atelier Studio" with a monthly price; copy the price id. Add a webhook endpoint `<app>/api/stripe/webhook` for `customer.subscription.*` events and copy its signing secret. Leave `STRIPE_*` unset to run without billing (the studio is open).
+4. **Stripe** (optional at first): create three products (Studio $29, Atelier $59, House $149, monthly recurring) and copy each price id into `STRIPE_PRICE_STUDIO / _ATELIER / _HOUSE`. Add a webhook endpoint `<app>/api/stripe/webhook` for `customer.subscription.*` events and copy its signing secret into `STRIPE_WEBHOOK_SECRET`. Leave `STRIPE_*` unset to run on admin-granted access only.
 4. **Env**: copy `.env.example` to `.env.local` and fill it. `APP_SECRET` must be a long random string and must never change after users save keys.
 5. **Run**: `npm install && npm run dev`.
 6. **Deploy**: push to GitHub, import in Vercel, set the same env vars. `vercel.json` registers a 1-minute cron on `/api/cron/poll` (Vercel Pro); on Hobby, point a free pinger (cron-job.org) at `https://<app>/api/cron/poll?secret=<CRON_SECRET>` every minute instead. Open tabs poll their own shots regardless, so the cron is only a safety net.

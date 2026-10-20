@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
 import { api, useToast, DangerButton } from "./ui";
+import { Plans } from "./Plans";
 
-type P = { email: string; plan: string; hint: string | null; hasCustomer: boolean; daysLeft: number | null; entitled: boolean; billing: boolean; admin: boolean; price: string; until: string | null };
+type P = { email: string; plan: string; hint: string | null; hasCustomer: boolean; daysLeft: number | null; entitled: boolean; billing: boolean; admin: boolean; tier: string; tierName: string; until: string | null };
 
 export function SettingsClient({ profile }: { profile: P }) {
   const [hint, setHint] = useState(profile.hint); const [key, setKey] = useState(""); const [busy, setBusy] = useState(false); const toast = useToast();
@@ -29,14 +30,10 @@ export function SettingsClient({ profile }: { profile: P }) {
         </form>
       </section>
 
-      <section className="panel">
-        <span className="lbl">Membership · {profile.price}</span>
-        <p className="text-sm">{profile.admin ? "You're the admin: the studio is always open for you." : profile.plan === "active" ? "Subscription active." : profile.entitled ? `Access open until ${profile.until ? new Date(profile.until).toLocaleDateString() : "—"} (${profile.daysLeft} days).` : "No access yet."}</p>
-        <div className="flex gap-2 flex-wrap">
-          {profile.billing && profile.plan !== "active" && !profile.admin && <button className="btn accent" onClick={() => billing("/api/stripe/checkout")}>Subscribe · {profile.price}</button>}
-          {profile.billing && profile.hasCustomer && <button className="btn ghost" onClick={() => billing("/api/stripe/portal")}>Manage billing</button>}
-        </div>
-        <p className="text-sm text-muted">The membership covers the studio: the library, the shoot builder, Claude drafting and the Instagram reach reports. Your generations are separate and go straight to Higgsfield.</p>
+      <section className="grid gap-4">
+        <div className="sechead"><h3 className="text-lg">Membership · {profile.tierName}</h3>{profile.billing && profile.hasCustomer && <button className="btn ghost sm" onClick={() => billing("/api/stripe/portal")}>Manage billing / change card</button>}</div>
+        <p className="text-sm text-muted">{profile.admin ? "You're the admin: the studio is always open for you, on the House offer." : profile.plan === "active" ? `Subscription active on ${profile.tierName}. Pick another offer to switch.` : profile.entitled ? `Access open until ${profile.until ? new Date(profile.until).toLocaleDateString() : "—"} (${profile.daysLeft} days) on ${profile.tierName}.` : "No access yet. Pick an offer."}</p>
+        <Plans mode={profile.billing ? "checkout" : "request"} current={profile.admin ? "house" : profile.entitled ? profile.tier : null} compact />
       </section>
     </div>
   );
