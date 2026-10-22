@@ -1,17 +1,37 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { api, useToast, DangerButton } from "./ui";
-import type { MoodItem } from "@/lib/load";
+import type { MoodItem, ShotItem } from "@/lib/load";
 import { DEFAULT_CAM } from "@/lib/prompt";
 
 type Model = { id: string; name: string; look: string; dna: string; ref_mood_id: string | null; note: string };
 
-export function Models({ brandId, models: m0, mood }: { brandId: string; models: Model[]; mood: MoodItem[] }) {
+export function Models({ brandId, models: m0, mood, candidates: c0 }: { brandId: string; models: Model[]; mood: MoodItem[]; candidates: ShotItem[] }) {
   const sb = supabaseBrowser(); const toast = useToast();
   const [models, setModels] = useState(m0); const [moodList, setMoodList] = useState(mood);
   const [name, setName] = useState(""); const [look, setLook] = useState(""); const [dna, setDna] = useState(""); const [file, setFile] = useState<File | null>(null); const [busy, setBusy] = useState("");
   const refUrl = (m: Model) => moodList.find((x) => x.id === m.ref_mood_id)?.url || null;
+  const [cands, setCands] = useState(c0); const [picking, setPicking] = useState("");
+  useEffect(() => {
+    const active = cands.filter((s) => s.status === "queued" || s.status === "generating");
+    if (!active.length) return;
+    const t = setTimeout(async () => { for (const s of active.slice(0, 6)) { try { const n = await api<ShotItem>(`/api/shots/${s.id}`, "GET"); setCands((x) => x.map((y) => (y.id === s.id ? n : y))); } catch { /* retry */ } } }, 6000);
+    return () => clearTimeout(t);
+  }, [cands]);
+  /** Four faces from the DNA alone (no reference), so the owner can approve one before it becomes the house model. */
+  async function candidates(m: Model) {
+    try {
+      const spec = { model: "house:" + m.id, expr: "calm, eyes soft", top: "plain white T-shirt", topFit: "regular-fit", bottom: "black trousers", botFit: "regular", pose: "standing straight, centered, arms relaxed", bg: "a seamless grey studio with a matte beige micro-concrete floor", shot: "close-up", lens: "85mm portrait lens, shallow depth of field", angle: "eye level", lsrc: "natural light from an overcast sky", ldir: "front-lit", lq: "soft, wrapping light", temp: "neutral daylight 5000K", comp: "centered symmetrical composition", tex: "realistic skin with visible pores and natural imperfections", aes: "minimalist aesthetic: neutral palette, negative space, soft diffused light", anchor: "Zara lookbook, clean catalogue", mood: "calm, reverent, light after darkness" };
+      const r = await api<{ shots: ShotItem[] }>("/api/shots", "POST", { brandId, kind: "image", spec, out: { aspect: "3:4", count: 4 }, refs: [], status: "queued", forModel: m.id, title: "Candidate · " + m.name });
+      setCands((x) => [...r.shots, ...x]); toast("4 candidates queued on your balance. Pick the one you like.");
+    } catch (err) { toast((err as Error).message); }
+  }
+  async function pick(m: Model, shotId: string, index: number) {
+    setPicking(shotId + index);
+    try { const { moodId } = await api<{ moodId: string }>("/api/models/reference", "POST", { modelId: m.id, shotId, index }); const url = cands.find((s) => s.id === shotId)?.results[index]?.url || null; setMoodList((x) => [{ id: moodId, kind: "image", path: null, url, note: `Model reference: ${m.name}`, garment: false, garment_slot: null, tags: ["model"], created_at: new Date().toISOString() }, ...x]); setModels((x) => x.map((y) => (y.id === m.id ? { ...y, ref_mood_id: moodId } : y))); toast(`${m.name} now has a reference face.`); }
+    catch (err) { toast((err as Error).message); } finally { setPicking(""); }
+  }
 
   async function add(e: React.FormEvent) {
     e.preventDefault(); setBusy("Saving…");
@@ -43,8 +63,18 @@ export function Models({ brandId, models: m0, mood }: { brandId: string; models:
             <div className="p-3 grid gap-1 content-start min-w-0">
               <div className="flex justify-between gap-2"><h4 className="text-base">{m.name}</h4><span className="lbl">{m.look}</span></div>
               <textarea className="bg-transparent border border-transparent focus:border-line focus:bg-sunk text-sm leading-snug resize-y min-h-20 p-1 w-full" defaultValue={m.dna} onBlur={async (e) => { if (e.target.value !== m.dna) { await sb.from("models").update({ dna: e.target.value }).eq("id", m.id); toast("DNA saved."); } }} />
-              <div className="flex gap-3 flex-wrap"><button className="btn sm ghost" onClick={() => sheet(m)}>Reference sheet</button><DangerButton onConfirm={async () => { await sb.from("models").delete().eq("id", m.id); setModels(models.filter((x) => x.id !== m.id)); }} /></div>
+              <div className="flex gap-3 flex-wrap"><button className="btn sm accent" onClick={() => candidates(m)}>{src ? "More candidates" : "Generate candidates"}</button><button className="btn sm ghost" onClick={() => sheet(m)} disabled={!src} title={src ? "" : "Pick a reference face first"}>Reference sheet</button><DangerButton onConfirm={async () => { await sb.from("models").delete().eq("id", m.id); setModels(models.filter((x) => x.id !== m.id)); }} /></div>
             </div>
+            {cands.some((c) => c.for_model === m.id) && (
+              <div className="col-span-2 border-t border-line p-3 grid gap-2">
+                <span className="lbl">Candidates · tap the one you approve</span>
+                <div className="grid grid-cols-4 gap-2">{cands.filter((c) => c.for_model === m.id).flatMap((c): { c: ShotItem; r: { url?: string } | null; i: number }[] => (c.status === "done" ? c.results.map((r, i) => ({ c, r, i })) : [{ c, r: null, i: 0 }])).slice(0, 12).map(({ c, r, i }) => r?.url ? (
+                  <button key={c.id + i} type="button" className="relative aspect-[3/4] bg-sunk rounded overflow-hidden border-2 border-transparent hover:border-accent" disabled={picking === c.id + i} onClick={() => pick(m, c.id, i)}><img src={r.url} alt="" className="w-full h-full object-cover" /><span className="absolute inset-x-0 bottom-0 text-[10px] text-center py-1 bg-bg/80">{picking === c.id + i ? "…" : "Use this face"}</span></button>
+                ) : (
+                  <div key={c.id + i} className="aspect-[3/4] bg-sunk rounded grid place-items-center lbl text-center p-2" style={{ color: c.status === "failed" ? "var(--bad)" : undefined }}>{c.status === "failed" ? c.error || "failed" : c.status === "queued" ? "queued" : "generating…"}</div>
+                ))}</div>
+              </div>
+            )}
           </article>); })}
         {!models.length && <div className="empty col-span-full">No house models yet. Add one below.</div>}
       </div>

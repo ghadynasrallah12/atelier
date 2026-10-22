@@ -11,7 +11,7 @@ export async function loadMood(sb: SupabaseClient, brandId: string): Promise<Moo
   return rows.map((r) => ({ ...r, url: r.path ? urls[r.path] || null : r.url }));
 }
 
-export type ShotItem = { id: string; kind: "image" | "reel"; title: string | null; spec: Record<string, string>; out: Record<string, unknown>; refs: { moodId: string; role: string; note?: string }[]; prompt: string; autos: string[]; status: string; example_for: string | null; reel_id: string | null; hf_model: string | null; results: { path?: string; url?: string; type: string }[]; note: string; error: string | null; created_at: string };
+export type ShotItem = { id: string; kind: "image" | "reel"; title: string | null; spec: Record<string, string>; out: Record<string, unknown>; refs: { moodId: string; role: string; note?: string }[]; prompt: string; autos: string[]; status: string; example_for: string | null; for_model?: string | null; reel_id: string | null; hf_model: string | null; results: { path?: string; url?: string; type: string }[]; note: string; error: string | null; created_at: string };
 
 export async function loadShots(sb: SupabaseClient, brandId: string): Promise<ShotItem[]> {
   const { data } = await sb.from("shots").select("*").eq("brand_id", brandId).order("created_at", { ascending: false }).limit(200);

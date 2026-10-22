@@ -14,6 +14,7 @@ const Body = z.object({
   status: z.enum(["draft", "queued"]).default("queued"),
   title: z.string().optional(),
   exampleFor: z.string().optional(),
+  forModel: z.string().uuid().optional(),
   reelId: z.string().uuid().optional(),
   promptOverride: z.string().optional(),
 });
@@ -30,7 +31,7 @@ export const POST = handler(async (req: Request) => {
   }
   const spec = b.spec as Spec;
   const hasGarment = !!(spec.top || spec.bottom || b.refs.some((r) => r.role.startsWith("garment")));
-  if (!hasGarment && !b.reelId && !b.exampleFor) return fail("Add a top or pants: a product photo, or pick the type.");
+  if (!hasGarment && !b.reelId && !b.exampleFor && !b.forModel) return fail("Add a top or pants: a product photo, or pick the type.");
   const { data: models } = await sb.from("models").select("id,name,dna").eq("brand_id", brand.id);
   const bible = (brand.bible || {}) as { visual?: string; line?: string };
   const filled = fillBlanks(spec, bible, b.kind, { top: !!spec.top || b.refs.some((r) => r.role === "garment-top"), bottom: !!spec.bottom || b.refs.some((r) => r.role === "garment-bottom") });
@@ -41,7 +42,7 @@ export const POST = handler(async (req: Request) => {
   for (let i = 0; i < count; i++) {
     rows.push({
       brand_id: brand.id, kind: b.kind, title: b.title || null, spec, out: b.out, refs: b.refs,
-      prompt: b.promptOverride || sendPrompt, autos, status: b.status, example_for: b.exampleFor || null, reel_id: b.reelId || null,
+      prompt: b.promptOverride || sendPrompt, autos, status: b.status, example_for: b.exampleFor || null, for_model: b.forModel || null, reel_id: b.reelId || null,
       note: autos.length ? `Filled for you: ${autos.join(", ")}.` : "",
     });
   }
