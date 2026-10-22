@@ -37,13 +37,19 @@ export const requireUser = cache(async () => {
   return { sb, user: data.user };
 });
 
-export type ProfileRow = Profile & { id: string; email: string | null; hf_key_hint: string | null; stripe_customer_id: string | null; tier: string | null };
+export type ProfileRow = Profile & { id: string; email: string | null; hf_key_hint: string | null; gg_key_hint?: string | null; stripe_customer_id: string | null; tier: string | null };
 
 /** The signed-in user's profile plus the access verdict. Deduplicated per request. */
 export const requireProfile = cache(async () => {
   const { sb, user } = await requireUser();
-  const { data } = await supabaseAdmin().from("profiles").select("id,email,plan,tier,requested_tier,trial_ends_at,access_until,requested_at,hf_key_hint,stripe_customer_id").eq("id", user.id).single();
-  const profile: ProfileRow = data || { id: user.id, email: user.email || null, plan: "trial", tier: "atelier", requested_tier: null, trial_ends_at: new Date(0).toISOString(), access_until: null, requested_at: null, hf_key_hint: null, stripe_customer_id: null };
+  const admin$ = supabaseAdmin();
+  let { data } = await admin$.from("profiles").select("id,email,plan,tier,requested_tier,trial_ends_at,access_until,requested_at,hf_key_hint,gg_key_hint,stripe_customer_id").eq("id", user.id).maybeSingle();
+  if (!data) {
+    // Accounts created before the sign-up trigger existed have no row: create it now so saves have somewhere to land.
+    const ins = await admin$.from("profiles").upsert({ id: user.id, email: user.email || null }, { onConflict: "id" }).select("id,email,plan,tier,requested_tier,trial_ends_at,access_until,requested_at,hf_key_hint,gg_key_hint,stripe_customer_id").single();
+    data = ins.data;
+  }
+  const profile: ProfileRow = data || { id: user.id, email: user.email || null, plan: "trial", tier: "atelier", requested_tier: null, trial_ends_at: new Date(0).toISOString(), access_until: null, requested_at: null, hf_key_hint: null, gg_key_hint: null, stripe_customer_id: null };
   if (!profile.email) profile.email = user.email || null;
   const access = entitled(profile);
   const admin = isAdmin(profile.email);

@@ -5,12 +5,13 @@ import { api, useToast, DangerButton } from "./ui";
 import type { MoodItem, ShotItem } from "@/lib/load";
 import { SL, CAM_KEYS, LOOKS, buildPrompt, type Spec, type SlotKey, type Ref } from "@/lib/prompt";
 import { IMAGE_MODELS, VIDEO_MODELS } from "@/lib/higgsfield";
+import { GOOGLE_IMAGE_MODELS, isGoogleModel } from "@/lib/google";
 import { LIB } from "@/lib/library";
 
 type Model = { id: string; name: string; look: string; dna: string; ref_mood_id: string | null };
 type Mode = "top" | "bottom" | "both";
-type State = { mode: Mode | null; look: string; kind: "image" | "reel"; v: Spec; custom: Partial<Record<SlotKey, boolean>>; out: { aspect: string; count: number; duration: number; audio: boolean; imageModel: string; videoModel: string }; refs: string[]; garments: { top: string | null; bottom: string | null } };
-const DEF = (): State => ({ mode: null, look: "studio", kind: "image", v: { ...LOOKS[0].cam }, custom: {}, out: { aspect: "4:5", count: 2, duration: 8, audio: true, imageModel: "grok-image-2", videoModel: "seedance-2.5" }, refs: [], garments: { top: null, bottom: null } });
+type State = { mode: Mode | null; look: string; kind: "image" | "reel"; v: Spec; custom: Partial<Record<SlotKey, boolean>>; out: { aspect: string; count: number; duration: number; audio: boolean; imageModel: string; videoModel: string; size: string }; refs: string[]; garments: { top: string | null; bottom: string | null } };
+const DEF = (): State => ({ mode: null, look: "studio", kind: "image", v: { ...LOOKS[0].cam }, custom: {}, out: { aspect: "4:5", count: 2, duration: 8, audio: true, imageModel: "grok-image-2", videoModel: "seedance-2.5", size: "2K" }, refs: [], garments: { top: null, bottom: null } });
 
 export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: string; name: string; line: string }; mood: MoodItem[]; shots: ShotItem[]; models: Model[] }) {
   const toast = useToast(); const key = `atelier-shoot2-${brand.id}`;
@@ -65,7 +66,7 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
     if (!ready) return toast(`Add the product photo of the ${needTop && !gt ? "top" : "pants"}.`);
     setBusy(true);
     try {
-      const out = S.kind === "image" ? { aspect: S.out.aspect, count: S.out.count, model: S.out.imageModel } : { aspect: "9:16", duration: S.out.duration, audio: S.out.audio, model: S.out.videoModel };
+      const out = S.kind === "image" ? { aspect: S.out.aspect, count: S.out.count, model: S.out.imageModel, ...(isGoogleModel(S.out.imageModel) ? { size: S.out.size } : {}) } : { aspect: "9:16", duration: S.out.duration, audio: S.out.audio, model: S.out.videoModel };
       const r = await api<{ shots: ShotItem[] }>("/api/shots", "POST", { brandId: brand.id, kind: S.kind, spec: specOut, out, refs, status });
       setShots((x) => [...r.shots, ...x]);
       toast(status === "queued" ? "Queued. Generating on your Higgsfield balance." : "Draft saved.");
@@ -153,7 +154,8 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
               {S.kind === "image" ? (<>
                 <label className="field"><span className="lbl">Format</span><select className="input" value={S.out.aspect} onChange={(e) => setS({ ...S, out: { ...S.out, aspect: e.target.value } })}>{[["4:5", "4:5 feed"], ["1:1", "1:1 square"], ["3:4", "3:4 portrait"], ["9:16", "9:16 story"], ["16:9", "16:9 wide"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
                 <label className="field"><span className="lbl">Variations</span><select className="input" value={S.out.count} onChange={(e) => setS({ ...S, out: { ...S.out, count: +e.target.value } })}>{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
-                <label className="field"><span className="lbl">Engine</span><select className="input" value={S.out.imageModel} onChange={(e) => setS({ ...S, out: { ...S.out, imageModel: e.target.value } })}>{Object.entries(IMAGE_MODELS).map(([id, m]) => <option key={id} value={id}>{m.label}</option>)}</select></label>
+                <label className="field"><span className="lbl">Engine</span><select className="input" value={S.out.imageModel} onChange={(e) => setS({ ...S, out: { ...S.out, imageModel: e.target.value } })}><optgroup label="Higgsfield key">{Object.entries(IMAGE_MODELS).map(([id, m]) => <option key={id} value={id}>{m.label}</option>)}</optgroup><optgroup label="Google AI key">{Object.entries(GOOGLE_IMAGE_MODELS).map(([id, m]) => <option key={id} value={id}>{m.label}</option>)}</optgroup></select></label>
+                {isGoogleModel(S.out.imageModel) && <label className="field"><span className="lbl">Resolution</span><select className="input" value={S.out.size} onChange={(e) => setS({ ...S, out: { ...S.out, size: e.target.value } })}>{GOOGLE_IMAGE_MODELS[S.out.imageModel].sizes.map((z) => <option key={z} value={z}>{z}{z === "4K" ? " · highest" : ""}</option>)}</select></label>}
               </>) : (<>
                 <label className="field"><span className="lbl">Length</span><select className="input" value={S.out.duration} onChange={(e) => setS({ ...S, out: { ...S.out, duration: +e.target.value } })}>{[5, 6, 8, 10, 12].map((n) => <option key={n} value={n}>{n} s · 9:16</option>)}</select></label>
                 <label className="field"><span className="lbl">Camera move</span><select className="input" value={S.v.move || ""} onChange={(e) => set("move", e.target.value)}><option value="">slow push-in (default)</option>{SL.move.opts.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>

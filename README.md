@@ -12,7 +12,7 @@ An AI content studio for fashion brands. Users paste their website, get a brand 
 - **Reels** – direction → 3 concepts (hook, beats with one camera line each, caption, sound, video prompt); generate the first beat; Claude pre-score; log Instagram results; post-mortem.
 - **Reach** – weekly snapshots, follower chart, predicted vs real, page diagnosis.
 - **Reach** – connect the brand's Instagram (professional account). Posts come in with reach, views, saves, shares, follows; "Why?" on any post gets a plain-language reason measured against the account's own medians; "Diagnose the page" reads everything.
-- **Settings** – Higgsfield key (verified with a free read-only call, AES-256-GCM encrypted at rest), membership status.
+- **Settings** – Higgsfield key and an optional Google AI key for the Nano Banana engines (Nano Banana Pro up to 4K, Nano Banana 2.1 up to 2K, via the Gemini Interactions API in background mode); both verified with a free read-only call and AES-256-GCM encrypted at rest. Membership status.
 - **Admin** (`/admin`, emails in `ADMIN_EMAILS`) – every account, who is waiting for access, grant 30/90/365 days or revoke. Use it to let customers in after they pay you directly; Stripe can do it automatically when configured.
 
 ## Offers
@@ -29,7 +29,7 @@ Next.js 16 (App Router) · Supabase (auth, Postgres with RLS, private storage) �
 
 ## Setup (about 30 minutes)
 
-1. **Supabase**: create a project. In the SQL editor run `supabase/migrations/0001_init.sql`, then `0002_access_instagram.sql`, then `0003_plans.sql`. In Authentication → URL configuration set the Site URL to your app URL and add `<app>/auth/callback` to the redirect list. Enable Email provider (password + magic link).
+1. **Supabase**: create a project. In the SQL editor run `supabase/migrations/0001_init.sql`, then `0002_access_instagram.sql`, then `0003_plans.sql`, then `0004_google_key.sql`. In Authentication → URL configuration set the Site URL to your app URL and add `<app>/auth/callback` to the redirect list. Enable Email provider (password + magic link).
 2. **Anthropic**: create an API key at console.anthropic.com.
 3. **Instagram** (optional): at developers.facebook.com create an app, add the **Instagram** product, choose "API setup with Instagram login", add `<app>/api/instagram/callback` as an OAuth redirect URI, copy the Instagram app ID and secret into `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET`. Until the app passes review, only accounts you add as Instagram Testers (App roles → Roles) can connect.
 4. **Stripe** (optional at first): create three products (Studio $29, Atelier $59, House $149, monthly recurring) and copy each price id into `STRIPE_PRICE_STUDIO / _ATELIER / _HOUSE`. Add a webhook endpoint `<app>/api/stripe/webhook` for `customer.subscription.*` events and copy its signing secret into `STRIPE_WEBHOOK_SECRET`. Leave `STRIPE_*` unset to run on admin-granted access only.

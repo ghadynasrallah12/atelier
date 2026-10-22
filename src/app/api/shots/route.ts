@@ -3,12 +3,13 @@ import { handler, json, fail } from "@/lib/api";
 import { requireBrand, supabaseAdmin } from "@/lib/supabase/server";
 import { buildPrompt, fillBlanks, type Spec, type Ref } from "@/lib/prompt";
 import { submitShot } from "@/lib/queue";
+import { isGoogleModel } from "@/lib/google";
 
 const Body = z.object({
   brandId: z.string().uuid(),
   kind: z.enum(["image", "reel"]).default("image"),
   spec: z.record(z.string(), z.string()).default({}),
-  out: z.object({ aspect: z.string().optional(), count: z.number().int().min(1).max(4).optional(), duration: z.number().optional(), audio: z.boolean().optional(), model: z.string().optional() }).default({}),
+  out: z.object({ aspect: z.string().optional(), count: z.number().int().min(1).max(4).optional(), duration: z.number().optional(), audio: z.boolean().optional(), model: z.string().optional(), size: z.string().optional() }).default({}),
   refs: z.array(z.object({ moodId: z.string().uuid(), role: z.enum(["garment-top", "garment-bottom", "model", "style"]), note: z.string().optional() })).default([]),
   status: z.enum(["draft", "queued"]).default("queued"),
   title: z.string().optional(),
@@ -22,8 +23,10 @@ export const POST = handler(async (req: Request) => {
   const b = Body.parse(await req.json());
   const { sb, user, brand } = await requireBrand(b.brandId);
   if (b.status === "queued") {
-    const { data: prof } = await supabaseAdmin().from("profiles").select("hf_key_hint").eq("id", user.id).single();
-    if (!prof?.hf_key_hint) return fail("Add your Higgsfield API key in Settings first. Generations run on your own balance.", 402);
+    const { data: prof } = await supabaseAdmin().from("profiles").select("hf_key_hint,gg_key_hint").eq("id", user.id).single();
+    const google = b.kind === "image" && isGoogleModel(b.out.model);
+    if (google && !prof?.gg_key_hint) return fail("Nano Banana runs on your own Google AI key. Add it in Settings (free to create at aistudio.google.com).", 402);
+    if (!google && !prof?.hf_key_hint) return fail("Add your Higgsfield API key in Settings first. Generations run on your own balance.", 402);
   }
   const spec = b.spec as Spec;
   const hasGarment = !!(spec.top || spec.bottom || b.refs.some((r) => r.role.startsWith("garment")));

@@ -3,10 +3,16 @@ import { useState } from "react";
 import { api, useToast, DangerButton } from "./ui";
 import { Plans } from "./Plans";
 
-type P = { email: string; plan: string; hint: string | null; hasCustomer: boolean; daysLeft: number | null; entitled: boolean; billing: boolean; admin: boolean; tier: string; tierName: string; until: string | null };
+type P = { email: string; plan: string; hint: string | null; ggHint: string | null; hasCustomer: boolean; daysLeft: number | null; entitled: boolean; billing: boolean; admin: boolean; tier: string; tierName: string; until: string | null };
 
 export function SettingsClient({ profile }: { profile: P }) {
   const [hint, setHint] = useState(profile.hint); const [key, setKey] = useState(""); const [busy, setBusy] = useState(false); const toast = useToast();
+  const [ggHint, setGgHint] = useState(profile.ggHint); const [ggKey, setGgKey] = useState(""); const [ggBusy, setGgBusy] = useState(false);
+  async function saveGg(e: React.FormEvent) {
+    e.preventDefault(); setGgBusy(true);
+    try { const r = await api<{ hint: string }>("/api/settings/google-key", "POST", { key: ggKey }); setGgHint(r.hint); setGgKey(""); toast("Google key verified and saved."); }
+    catch (err) { toast((err as Error).message); } finally { setGgBusy(false); }
+  }
   async function save(e: React.FormEvent) {
     e.preventDefault(); setBusy(true);
     try { const r = await api<{ hint: string }>("/api/settings/key", "POST", { key }); setHint(r.hint); setKey(""); toast("Key verified and saved."); }
@@ -27,6 +33,16 @@ export function SettingsClient({ profile }: { profile: P }) {
         <form onSubmit={save} className="flex gap-2 flex-wrap">
           <input className="input flex-1 min-w-[240px]" value={key} onChange={(e) => setKey(e.target.value)} placeholder={hint ? "Paste a new key to replace it" : "KEY_ID:KEY_SECRET"} autoComplete="off" />
           <button className="btn" disabled={busy || key.length < 8}>{busy ? "Verifying…" : "Verify & save"}</button>
+        </form>
+      </section>
+
+      <section className="panel">
+        <span className="lbl">Google AI key · optional · for Nano Banana Pro (4K)</span>
+        <p className="text-sm">For the highest-resolution images (Nano Banana Pro up to 4K, Nano Banana 2.1 up to 2K). 1. Go to <a className="underline" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> &nbsp;2. Create an API key on a project with billing enabled &nbsp;3. Paste it here. Google bills each image to you directly.</p>
+        {ggHint ? <div className="flex items-center gap-4 flex-wrap"><span className="pill" style={{ color: "var(--good)" }}>Connected · {ggHint}</span><DangerButton onConfirm={async () => { await api("/api/settings/google-key", "DELETE"); setGgHint(null); toast("Google key removed."); }}>Remove key</DangerButton></div> : <span className="pill" style={{ color: "var(--muted)" }}>Not connected · Higgsfield engines still work</span>}
+        <form onSubmit={saveGg} className="flex gap-2 flex-wrap">
+          <input className="input flex-1 min-w-[240px]" value={ggKey} onChange={(e) => setGgKey(e.target.value)} placeholder={ggHint ? "Paste a new key to replace it" : "AIza…"} autoComplete="off" />
+          <button className="btn" disabled={ggBusy || ggKey.length < 20}>{ggBusy ? "Verifying…" : "Verify & save"}</button>
         </form>
       </section>
 
