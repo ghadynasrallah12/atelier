@@ -43,7 +43,8 @@ export type ProfileRow = Profile & { id: string; email: string | null; hf_key_hi
 export const requireProfile = cache(async () => {
   const { sb, user } = await requireUser();
   const admin$ = supabaseAdmin();
-  let { data } = await admin$.from("profiles").select("id,email,plan,tier,requested_tier,trial_ends_at,access_until,requested_at,hf_key_hint,gg_key_hint,stripe_customer_id").eq("id", user.id).maybeSingle();
+  let { data, error } = await admin$.from("profiles").select("id,email,plan,tier,requested_tier,trial_ends_at,access_until,requested_at,hf_key_hint,gg_key_hint,stripe_customer_id").eq("id", user.id).maybeSingle();
+  if (error) console.error("profiles read failed (service role key?):", error.message);
   if (!data) {
     // Accounts created before the sign-up trigger existed have no row: create it now so saves have somewhere to land.
     const ins = await admin$.from("profiles").upsert({ id: user.id, email: user.email || null }, { onConflict: "id" }).select("id,email,plan,tier,requested_tier,trial_ends_at,access_until,requested_at,hf_key_hint,gg_key_hint,stripe_customer_id").single();
