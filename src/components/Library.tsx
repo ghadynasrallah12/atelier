@@ -1,18 +1,28 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LIB, LIB_ORDER, FIT_LABEL, AES_DIALS, MATRIX, tagOf, slotOf } from "@/lib/library";
 import { diagram } from "@/lib/diagrams";
 import { DEFAULT_CAM } from "@/lib/prompt";
 import { api, useToast } from "./ui";
 
+const SLOTS = ["shot", "lens", "lsrc", "ldir", "lq", "temp", "comp", "tex", "move", "aes", "pose"];
+const SLOT_NAME: Record<string, string> = { shot: "shot", lens: "lens", lsrc: "light source", ldir: "light direction", lq: "light quality", temp: "temperature", comp: "composition", tex: "texture", move: "camera move", aes: "aesthetic", pose: "pose" };
+
 export function Library({ brandId, examples }: { brandId: string; examples: Record<string, { url: string; alt: string }[]> }) {
   const [sec, setSec] = useState<string>("shots"); const toast = useToast(); const router = useRouter();
-  const S = LIB[sec];
-  function use(slot: string, val: string) {
-    try { const cur = JSON.parse(localStorage.getItem(`atelier-shoot2-${brandId}`) || "{}"); cur.v = { ...(cur.v || {}), [slot]: val }; localStorage.setItem(`atelier-shoot2-${brandId}`, JSON.stringify(cur)); } catch { /* ignore */ }
-    toast("Set in the builder."); router.push(`/b/${brandId}/shoot`);
+  const S = LIB[sec]; const KEY = `atelier-shoot2-${brandId}`;
+  const [picked, setPicked] = useState<Record<string, string>>({});
+  useEffect(() => { try { setPicked(JSON.parse(localStorage.getItem(KEY) || "{}").v || {}); } catch { /* ignore */ } }, [KEY]);
+  /** Puts the line into the shoot builder's slot (or takes it out again). Stays on this page. */
+  function use(slot: string, val: string, name: string) {
+    const on = picked[slot] === val;
+    const next = { ...picked }; if (on) delete next[slot]; else next[slot] = val;
+    try { const cur = JSON.parse(localStorage.getItem(KEY) || "{}"); cur.v = next; localStorage.setItem(KEY, JSON.stringify(cur)); } catch { /* ignore */ }
+    setPicked(next); toast(on ? `${name} removed from the shoot.` : `${name} → ${SLOT_NAME[slot] || slot} in the shoot.`);
   }
+  const nPicked = Object.keys(picked).filter((k) => SLOTS.includes(k)).length;
   async function example(tag: string, slot: string, val: string, name: string) {
     try {
       const spec = { ...DEFAULT_CAM, top: "heavyweight T-shirt", topFit: "oversized", topColor: "cream", bottom: "elastic-waist trousers", botFit: "wide-leg", botColor: "taupe", pose: "standing straight, centered, arms relaxed", bg: "a seamless grey studio with a matte beige micro-concrete floor", [slot]: val };
@@ -22,8 +32,9 @@ export function Library({ brandId, examples }: { brandId: string; examples: Reco
   }
   return (
     <div className="grid gap-8">
+      {nPicked > 0 && <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 card px-4 py-2 flex items-center gap-4 shadow-2xl" style={{ background: "var(--raise)" }}><span className="text-sm"><b>{nPicked}</b> pick{nPicked === 1 ? "" : "s"} in the shoot · {SLOTS.filter((k) => picked[k]).map((k) => SLOT_NAME[k]).join(", ")}</span><Link href={`/b/${brandId}/shoot`} className="btn sm accent">Go to the shoot →</Link><button className="linkbtn" onClick={() => { const next = { ...picked }; SLOTS.forEach((k) => delete next[k]); try { const cur = JSON.parse(localStorage.getItem(KEY) || "{}"); cur.v = next; localStorage.setItem(KEY, JSON.stringify(cur)); } catch { /* ignore */ } setPicked(next); }}>Clear</button></div>}
       <div><div className="sechead"><h2>Library</h2><span className="lbl">The art director's vocabulary</span></div>
-        <p className="intro">Shot, lens, light, composition, texture, camera, aesthetic, pose. Every card has a real reference shot: the same model, the same outfit, the same studio, and only that one variable changed, so you can see what the word actually does. Under it, the exact line to put in a prompt and your own images that already do it. “Use” drops it into the shoot builder; “Shoot yours” generates one with your garments, on your balance.</p>
+        <p className="intro">Shot, lens, light, composition, texture, camera, aesthetic, pose. Every card has a real reference shot: the same model, the same outfit, the same studio, and only that one variable changed, so you can see what the word actually does. Under it, the exact line to put in a prompt and your own images that already do it. “Use” puts it into the shoot builder (one per slot: shot, lens, light…), and you keep browsing; “Shoot yours” generates one with your garments, on your balance.</p>
         <div className="flex gap-2 flex-wrap mt-4">{LIB_ORDER.map((k) => <button key={k} className={"btn sm " + (sec === k ? "" : "ghost")} style={{ borderRadius: 20 }} onClick={() => setSec(k)}>{LIB[k].title}</button>)}</div></div>
       <div className="rule"><b>{S.title}.</b> {S.note}</div>
       {sec === "move" && <div className="rule" style={{ borderColor: "var(--bad)" }}><b>Three mistakes.</b> “Cinematic camera” is not an instruction. Two movements in one prompt cause jitter: split into two shots. No camera line means the model decides for you.</div>}
@@ -40,7 +51,7 @@ export function Library({ brandId, examples }: { brandId: string; examples: Reco
             <div className="p-3 grid gap-1 content-start"><div className="flex justify-between gap-2 items-baseline"><h4 className="text-base">{it.name}</h4><span className="lbl" style={{ color: it.fit === "core" ? "var(--good)" : it.fit === "ok" ? "var(--warn)" : undefined }}>{FIT_LABEL[it.fit]}</span></div>
               <div className="text-sm text-muted">{it.eff}{it.dur && <span className="lbl"> · {it.dur}</span>}</div><div className="font-mono text-[11px]" style={{ color: "var(--accent)" }}>“{it.line}”</div></div>
             <div className="flex justify-between items-center gap-2 px-3 pb-3"><div className="flex gap-1 items-center"><span className="lbl" style={{ fontSize: 10 }}>Yours</span>{ex.length ? ex.slice(0, 3).map((x, i) => <img key={i} src={x.url} alt={x.alt} title={x.alt} className="w-[30px] h-[38px] object-cover border border-line bg-sunk" loading="lazy" />) : <span className="text-muted" style={{ fontSize: 10 }}>—</span>}</div>
-              <div className="flex gap-1"><button className="btn sm ghost" onClick={() => use(slot, it.line)}>Use</button>{!ex.length && <button className="btn sm" onClick={() => example(tag, slot, it.line, it.name)}>Shoot yours</button>}</div></div>
+              <div className="flex gap-1"><button className={"btn sm " + (picked[slot] === it.line ? "accent" : "ghost")} onClick={() => use(slot, it.line, it.name)}>{picked[slot] === it.line ? "In the shoot ✓" : "Use"}</button>{!ex.length && <button className="btn sm" onClick={() => example(tag, slot, it.line, it.name)}>Shoot yours</button>}</div></div>
           </article>); })}
       </div>
       {sec === "aes" && (<>
