@@ -10,7 +10,7 @@ export function Library({ brandId, examples }: { brandId: string; examples: Reco
   const [sec, setSec] = useState<string>("shots"); const toast = useToast(); const router = useRouter();
   const S = LIB[sec];
   function use(slot: string, val: string) {
-    try { const cur = JSON.parse(localStorage.getItem(`atelier-shot-${brandId}`) || "{}"); cur.v = { ...(cur.v || {}), [slot]: val }; localStorage.setItem(`atelier-shot-${brandId}`, JSON.stringify(cur)); } catch { /* ignore */ }
+    try { const cur = JSON.parse(localStorage.getItem(`atelier-shoot2-${brandId}`) || "{}"); cur.v = { ...(cur.v || {}), [slot]: val }; localStorage.setItem(`atelier-shoot2-${brandId}`, JSON.stringify(cur)); } catch { /* ignore */ }
     toast("Set in the builder."); router.push(`/b/${brandId}/shoot`);
   }
   async function example(tag: string, slot: string, val: string, name: string) {

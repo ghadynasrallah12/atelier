@@ -30,7 +30,7 @@ export const POST = handler(async (req: Request) => {
   if (!hasGarment && !b.reelId && !b.exampleFor) return fail("Add a top or pants: a product photo, or pick the type.");
   const { data: models } = await sb.from("models").select("id,name,dna").eq("brand_id", brand.id);
   const bible = (brand.bible || {}) as { visual?: string; line?: string };
-  const filled = fillBlanks(spec, bible, b.kind);
+  const filled = fillBlanks(spec, bible, b.kind, { top: !!spec.top || b.refs.some((r) => r.role === "garment-top"), bottom: !!spec.bottom || b.refs.some((r) => r.role === "garment-bottom") });
   const { prompt: builtPrompt, autos } = buildPrompt(spec, b.kind, b.out, b.refs, models || [], brand.name, bible.line || "");
   const { prompt: sendPrompt } = buildPrompt(filled, b.kind, b.out, b.refs, models || [], brand.name, bible.line || "");
   const count = b.kind === "image" ? Math.min(4, b.out.count || 1) : 1;

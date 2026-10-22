@@ -36,6 +36,15 @@ export const SL: Record<SlotKey, { name: string; empty?: string; opts: string[] 
 export const SCENE_KEYS: SlotKey[] = ["model", "expr", "topFit", "topColor", "top", "topBrand", "botFit", "botColor", "bottom", "botBrand", "shoes", "acc", "pose", "bg"];
 export const CAM_KEYS: SlotKey[] = ["shot", "lens", "angle", "lsrc", "ldir", "lq", "temp", "comp", "tex", "aes", "anchor", "mood"];
 
+/** One-tap camera + light looks. Each sets the whole camera row; the background is only suggested if empty. */
+export const LOOKS: { id: string; name: string; blurb: string; cam: Spec; bg?: string }[] = [
+  { id: "studio", name: "Studio clean", blurb: "Soft, centered, catalogue-premium. The safe default.", cam: { shot: "full shot, head to toe", lens: "50mm lens, natural perspective", angle: "eye level", lsrc: "soft studio strobes through a large softbox", ldir: "backlit, light wrapping the edges", lq: "soft, wrapping light", temp: "neutral daylight 5000K", comp: "centered symmetrical composition", tex: "100% premium heavyweight cotton, visibly weighty, realistic folds and natural drape", aes: "minimalist aesthetic: neutral palette, negative space, soft diffused light", anchor: "quiet luxury editorial (Fear of God)", mood: "exclusivity, status, quiet power" }, bg: "a seamless grey studio with a matte beige micro-concrete floor" },
+  { id: "editorial", name: "Editorial", blurb: "Hard side light, sculpted shadows, magazine finish.", cam: { shot: "full shot, head to toe", lens: "85mm portrait lens, shallow depth of field", angle: "slightly low angle", lsrc: "soft studio strobes through a large softbox", ldir: "side-lit from camera left, Rembrandt shadow", lq: "hard light with sharp shadows", temp: "neutral daylight 5000K", comp: "centered symmetrical composition", tex: "100% premium heavyweight cotton, visibly weighty, realistic folds and natural drape", aes: "editorial fashion aesthetic: studio light, bold pose, glossy textures", anchor: "Helmut Newton fashion rigour, in colour", mood: "exclusivity, status, quiet power" }, bg: "a soft grey gradient backdrop" },
+  { id: "night", name: "Cinematic night", blurb: "Low-key, haze, neon edges, filmic grade.", cam: { shot: "medium shot, waist up", lens: "50mm lens, natural perspective", angle: "eye level", lsrc: "neon and LED accents", ldir: "rim light outlining the silhouette", lq: "hard light with sharp shadows", temp: "cool 6500K tone", comp: "subject on the rule-of-thirds line", tex: "100% premium heavyweight cotton, visibly weighty, realistic folds and natural drape", aes: "cinematic aesthetic: low-key, haze, shallow depth of field, filmic grade", anchor: "Roger Deakins haze, muted palette", mood: "cold, lonely, cinematic" }, bg: "an empty city street at dawn" },
+  { id: "golden", name: "Golden hour", blurb: "Warm backlight, long shadows, soft and intimate.", cam: { shot: "full shot, head to toe", lens: "85mm portrait lens, shallow depth of field", angle: "eye level", lsrc: "natural light from an overcast sky", ldir: "backlit, light wrapping the edges", lq: "soft, wrapping light", temp: "warm 3200K tone", comp: "generous negative space around the subject", tex: "100% premium heavyweight cotton, visibly weighty, realistic folds and natural drape", aes: "dreamy aesthetic: soft haze, bloom, pastel light", anchor: "Jil Sander minimal campaign", mood: "warm, intimate, unhurried" }, bg: "a city rooftop at dusk" },
+  { id: "street", name: "Gritty street", blurb: "Flash, wide lens, concrete, high contrast.", cam: { shot: "full shot, head to toe", lens: "28mm wide lens", angle: "slightly low angle", lsrc: "hard on-camera flash", ldir: "front-lit", lq: "hard light with sharp shadows", temp: "neutral daylight 5000K", comp: "leading lines converging on the subject", tex: "100% premium heavyweight cotton, visibly weighty, realistic folds and natural drape", aes: "gritty aesthetic: high contrast, desaturated, harsh side light, urban texture", anchor: "90s Calvin Klein campaign, in colour", mood: "grounded, humble, resolute" }, bg: "a brutalist concrete building" },
+];
+
 export const DEFAULT_CAM: Spec = { shot: "full shot, head to toe", lens: "50mm lens, natural perspective", angle: "eye level", lsrc: "soft studio strobes through a large softbox", ldir: "backlit, light wrapping the edges", lq: "soft, wrapping light", temp: "neutral daylight 5000K", comp: "centered symmetrical composition", tex: "100% premium heavyweight cotton, visibly weighty, realistic folds and natural drape", aes: "minimalist aesthetic: neutral palette, negative space, soft diffused light", anchor: "quiet luxury editorial (Fear of God)", mood: "exclusivity, status, quiet power" };
 
 export type RefRole = "garment-top" | "garment-bottom" | "model" | "style";
@@ -80,11 +89,14 @@ export function buildPrompt(spec: Spec, kind: "image" | "reel", out: { duration?
 }
 
 /** Fill "your call" blanks from the brand's visual rules before sending to the model. */
-export function fillBlanks(spec: Spec, brand: { visual?: string }, kind: "image" | "reel") {
+export function fillBlanks(spec: Spec, brand: { visual?: string }, kind: "image" | "reel", has: { top: boolean; bottom: boolean } = { top: !!spec.top, bottom: !!spec.bottom }) {
   const out: Spec = { ...spec };
   const v = (brand.visual || "").toLowerCase();
   const prefer = (k: SlotKey, pick: string) => { if (!out[k]) out[k] = pick; };
   prefer("expr", "stoic and expressionless");
+  // Shooting one piece only: keep the other half of the outfit plain so it never competes with the product.
+  if (!has.bottom && !out.bottom) { out.bottom = "plain trousers in a neutral tone that do not compete with the top"; out.botFit = out.botFit || ""; out.botColor = ""; out.botBrand = ""; }
+  if (!has.top && !out.top) { out.top = "plain T-shirt in a neutral tone that does not compete with the pants"; out.topFit = out.topFit || ""; out.topColor = ""; out.topBrand = ""; }
   prefer("shoes", "minimal white sneakers");
   prefer("acc", "no accessories");
   prefer("pose", "standing straight, centered, arms relaxed");
