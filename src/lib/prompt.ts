@@ -74,7 +74,7 @@ export function buildPrompt(spec: Spec, kind: "image" | "reel", out: { duration?
   else autos.push("pants (your call)");
   const wearing = [topP, botP].filter(Boolean).join(", and ") || "the brand's look";
   let s = (kind === "reel" ? "Ultra-realistic luxury fashion film" : "Ultra-realistic fashion editorial photograph") + ` for ${brandName}${brandLine ? ", " + brandLine : ""}.\n\n`;
-  if (gi || gb) s += `GARMENTS: ${gi ? `image ${gi} is the top` : ""}${gi && gb ? "; " : ""}${gb ? `image ${gb} is the pants` : ""}. These are the products: copy them exactly, do not redesign them.\n`;
+  if (gi || gb) s += `GARMENTS: ${gi ? `image ${gi} is the top` : ""}${gi && gb ? "; " : ""}${gb ? `image ${gb} is the pants` : ""}. These are the products: copy them exactly, do not redesign them. Any logo, print or embroidery appears only where it sits on the product photo, at the same size, and nowhere else: never add, move, enlarge or repeat a print on another part of the garment.\n`;
   if (mi) s += `MODEL: image ${mi} is the model. Identity lock: the same exact person, same face, hair, skin tone and build.\n`;
   if (gi || gb || mi) s += "\n";
   s += `SUBJECT: ${dna ? dna + " " : model ? "A " + model : "A model"}${expr ? (dna ? "Expression: " + expr + ". " : ", " + expr + ", ") : dna ? "" : " "}${dna ? "Wearing " : "wearing "}${wearing}.${sh || ac ? ` On the feet, ${sh || "shoes that suit the look"}${ac ? "; " + ac : ""}.` : ""}${po ? ` The model is ${po}.` : ""}\n\n`;

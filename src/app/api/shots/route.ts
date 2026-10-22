@@ -17,6 +17,7 @@ const Body = z.object({
   forModel: z.string().uuid().optional(),
   reelId: z.string().uuid().optional(),
   promptOverride: z.string().optional(),
+  notes: z.string().max(1500).optional(),
 });
 
 /** Create a shot. Queued shots are submitted to Higgsfield immediately (on the user's key). */
@@ -42,7 +43,7 @@ export const POST = handler(async (req: Request) => {
   for (let i = 0; i < count; i++) {
     rows.push({
       brand_id: brand.id, kind: b.kind, title: b.title || null, spec, out: b.out, refs: b.refs,
-      prompt: b.promptOverride || sendPrompt, autos, status: b.status, example_for: b.exampleFor || null, for_model: b.forModel || null, reel_id: b.reelId || null,
+      prompt: (b.promptOverride || sendPrompt) + (b.notes?.trim() ? `\n\nCORRECTIONS (must follow exactly): ${b.notes.trim()}` : ""), autos, status: b.status, example_for: b.exampleFor || null, for_model: b.forModel || null, reel_id: b.reelId || null,
       note: autos.length ? `Filled for you: ${autos.join(", ")}.` : "",
     });
   }

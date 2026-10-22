@@ -3,17 +3,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { api, useToast, DangerButton } from "./ui";
 import type { MoodItem, ShotItem } from "@/lib/load";
-import { SL, CAM_KEYS, LOOKS, buildPrompt, type Spec, type SlotKey, type Ref } from "@/lib/prompt";
+import { SL, CAM_KEYS, LOOKS, buildPrompt, fillBlanks, type Spec, type SlotKey, type Ref } from "@/lib/prompt";
 import { IMAGE_MODELS, VIDEO_MODELS } from "@/lib/higgsfield";
 import { GOOGLE_IMAGE_MODELS, isGoogleModel } from "@/lib/google";
 import { LIB } from "@/lib/library";
 
 type Model = { id: string; name: string; look: string; dna: string; ref_mood_id: string | null };
 type Mode = "top" | "bottom" | "both";
-type State = { mode: Mode | null; look: string; kind: "image" | "reel"; v: Spec; custom: Partial<Record<SlotKey, boolean>>; out: { aspect: string; count: number; duration: number; audio: boolean; imageModel: string; videoModel: string; size: string }; refs: string[]; garments: { top: string | null; bottom: string | null } };
-const DEF = (): State => ({ mode: null, look: "studio", kind: "image", v: { ...LOOKS[0].cam }, custom: {}, out: { aspect: "4:5", count: 2, duration: 8, audio: true, imageModel: "grok-image-2", videoModel: "seedance-2.5", size: "2K" }, refs: [], garments: { top: null, bottom: null } });
+type State = { mode: Mode | null; look: string; notes: string; promptEdit: string | null; kind: "image" | "reel"; v: Spec; custom: Partial<Record<SlotKey, boolean>>; out: { aspect: string; count: number; duration: number; audio: boolean; imageModel: string; videoModel: string; size: string }; refs: string[]; garments: { top: string | null; bottom: string | null } };
+const DEF = (): State => ({ mode: null, look: "studio", notes: "", promptEdit: null, kind: "image", v: { ...LOOKS[0].cam }, custom: {}, out: { aspect: "4:5", count: 2, duration: 8, audio: true, imageModel: "grok-image-2", videoModel: "seedance-2.5", size: "2K" }, refs: [], garments: { top: null, bottom: null } });
 
-export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: string; name: string; line: string }; mood: MoodItem[]; shots: ShotItem[]; models: Model[] }) {
+export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: string; name: string; line: string; visual: string }; mood: MoodItem[]; shots: ShotItem[]; models: Model[] }) {
   const toast = useToast(); const key = `atelier-shoot2-${brand.id}`;
   const [S, setS] = useState<State>(DEF()); const [mood, setMood] = useState(m0); const [shots, setShots] = useState(s0); const [busy, setBusy] = useState(false);
   const [gTarget, setGTarget] = useState<"top" | "bottom">("top"); const gUp = useRef<HTMLInputElement>(null); const [adv, setAdv] = useState(false);
@@ -39,7 +39,12 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
   }, [S.garments, S.refs, modelRefId, needTop, needBot]);
   // Only the chosen pieces travel; the other half is filled plain server-side.
   const specOut: Spec = useMemo(() => { const v = { ...S.v }; if (!needTop) { delete v.top; delete v.topFit; delete v.topColor; delete v.topBrand; } if (!needBot) { delete v.bottom; delete v.botFit; delete v.botColor; delete v.botBrand; } return v; }, [S.v, needTop, needBot]);
-  const { prompt, autos } = useMemo(() => buildPrompt(specOut, S.kind, S.out, refs, models, brand.name, brand.line), [specOut, S.kind, S.out, refs, models, brand]);
+  const { prompt: generated, autos } = useMemo(() => {
+    const { autos } = buildPrompt(specOut, S.kind, S.out, refs, models, brand.name, brand.line);
+    const filled = fillBlanks(specOut, { visual: brand.visual }, S.kind, { top: !!specOut.top || refs.some((r) => r.role === "garment-top"), bottom: !!specOut.bottom || refs.some((r) => r.role === "garment-bottom") });
+    return { prompt: buildPrompt(filled, S.kind, S.out, refs, models, brand.name, brand.line).prompt, autos };
+  }, [specOut, S.kind, S.out, refs, models, brand]);
+  const prompt = S.promptEdit ?? generated;
 
   const set = (k: SlotKey, val: string) => setS((s) => { const custom = { ...s.custom }; if (val === "__other") { custom[k] = true; return { ...s, custom, v: { ...s.v, [k]: "" } }; } delete custom[k]; return { ...s, custom, v: { ...s.v, [k]: val } }; });
   function Blank({ k, house }: { k: SlotKey; house?: boolean }) {
@@ -67,7 +72,7 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
     setBusy(true);
     try {
       const out = S.kind === "image" ? { aspect: S.out.aspect, count: S.out.count, model: S.out.imageModel, ...(isGoogleModel(S.out.imageModel) ? { size: S.out.size } : {}) } : { aspect: "9:16", duration: S.out.duration, audio: S.out.audio, model: S.out.videoModel };
-      const r = await api<{ shots: ShotItem[] }>("/api/shots", "POST", { brandId: brand.id, kind: S.kind, spec: specOut, out, refs, status });
+      const r = await api<{ shots: ShotItem[] }>("/api/shots", "POST", { brandId: brand.id, kind: S.kind, spec: specOut, out, refs, status, notes: S.notes, ...(S.promptEdit != null ? { promptOverride: S.promptEdit } : {}) });
       setShots((x) => [...r.shots, ...x]);
       toast(status === "queued" ? "Queued. Generating on your Higgsfield balance." : "Draft saved.");
       document.getElementById("queue")?.scrollIntoView({ behavior: "smooth" });
@@ -166,7 +171,14 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
             <div className="flex gap-3 flex-wrap items-center"><button className="btn accent" disabled={busy || !ready} onClick={() => save("queued")}>{busy ? "Sending…" : "Shoot it"}</button><button className="btn ghost" disabled={busy} onClick={() => save("draft")}>Save draft</button><button className="linkbtn" onClick={() => setS(DEF())}>Start over</button>
               {!ready && <span className="text-sm" style={{ color: "var(--warn)" }}>{!S.mode ? "Pick what you're shooting first." : `Upload the ${needTop && !gt ? "top" : "pants"} photo to shoot.`}</span>}
               {ready && <span className="text-sm text-muted">Billed to your Higgsfield balance at the engine's listed rate.</span>}</div>
-            <details className="more"><summary>Prompt that will be sent</summary><div className="prompt mt-3">{prompt}{autos.length ? `\n\nFilled for you from the brand's visual rules: ${autos.join(", ")}.` : ""}</div></details>
+            <label className="field"><span className="lbl">Corrections · plain words, added to the prompt as rules</span><textarea className="input text-sm min-h-[64px]" value={S.notes} onChange={(e) => setS({ ...S, notes: e.target.value })} placeholder="e.g. the pants print is only on the left thigh, nothing on the knee · no logo on the chest · keep the sleeves pushed up" /></label>
+            <details className="more" open={S.promptEdit != null}><summary>{S.promptEdit != null ? "Prompt · edited by hand" : "Prompt that will be sent · click to edit"}</summary>
+              <div className="grid gap-2 mt-3">
+                {S.promptEdit != null && <div className="rule text-sm" style={{ borderColor: "var(--warn)" }}>You're editing the prompt directly. The steps above no longer change it until you <button className="linkbtn" onClick={() => setS({ ...S, promptEdit: null })}>reset to generated</button>.</div>}
+                <textarea className="prompt w-full min-h-[320px]" value={prompt} onChange={(e) => setS({ ...S, promptEdit: e.target.value })} spellCheck={false} />
+                <div className="flex gap-3 items-center flex-wrap">{S.promptEdit != null ? <button className="btn sm ghost" onClick={() => setS({ ...S, promptEdit: null })}>Reset to generated</button> : <span className="text-xs text-muted">{autos.length ? `Filled for you from the brand's visual rules: ${autos.join(", ")}.` : "Everything set by you."}</span>}<span className="text-xs text-muted">Image numbers refer to the references on the right, in order.</span></div>
+              </div>
+            </details>
           </section>
         </div>
 
@@ -207,7 +219,7 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
               <div className="flex gap-3 flex-wrap items-center">
                 {(s.status === "draft" || s.status === "failed") && <button className="btn sm" onClick={async () => { try { const n = await api<ShotItem>(`/api/shots/${s.id}`, "PATCH", { status: "queued" }); setShots((x) => x.map((y) => (y.id === s.id ? n : y))); } catch (err) { toast((err as Error).message); } }}>{s.status === "failed" ? "Retry" : "Shoot it"}</button>}
                 {s.status === "done" && s.kind === "image" && s.results?.[0] && <button className="btn sm accent" onClick={async () => { try { const r = await api<{ shots: ShotItem[] }>("/api/shots", "POST", { brandId: brand.id, kind: "reel", spec: { ...sp, move: sp.move || "slow push-in toward the subject", act: sp.act || "breathes and barely moves" }, out: { aspect: "9:16", duration: 6, audio: true, model: "kling-o3" }, refs: s.refs, status: "queued", title: "Animated from image" }); setShots((x) => [...r.shots, ...x]); toast("Reel queued."); } catch (err) { toast((err as Error).message); } }}>Animate into a reel</button>}
-                <button className="btn sm ghost" onClick={() => { setS((x) => ({ ...x, kind: s.kind, mode: gT && gB ? "both" : gB ? "bottom" : "top", v: { ...x.v, ...sp }, refs: (s.refs || []).filter((r) => r.role === "style").map((r) => r.moodId), garments: { top: s.refs?.find((r) => r.role === "garment-top")?.moodId || null, bottom: s.refs?.find((r) => r.role === "garment-bottom")?.moodId || null } })); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Load into builder</button>
+                <button className="btn sm ghost" onClick={() => { setS((x) => ({ ...x, kind: s.kind, mode: gT && gB ? "both" : gB ? "bottom" : "top", v: { ...x.v, ...sp }, notes: "", promptEdit: s.prompt, refs: (s.refs || []).filter((r) => r.role === "style").map((r) => r.moodId), garments: { top: s.refs?.find((r) => r.role === "garment-top")?.moodId || null, bottom: s.refs?.find((r) => r.role === "garment-bottom")?.moodId || null } })); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Load into builder</button>
                 <DangerButton onConfirm={async () => { try { await api(`/api/shots/${s.id}`, "DELETE"); setShots((x) => x.filter((y) => y.id !== s.id)); } catch (err) { toast((err as Error).message); } }} />
               </div>
             </article>); })}
