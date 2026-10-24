@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { SignOut } from "./SignOut";
 
-const ROOMS = [["house", "The House", "01"], ["library", "Library", "02"], ["models", "Models", "03"], ["shoot", "Shoot", "04"], ["hooks", "Hooks", "05"], ["reels", "Reels", "06"], ["reach", "Reach", "07"]];
+const ROOMS = [["house", "The House", "01"], ["library", "Library", "02"], ["models", "Models", "03"], ["shoot", "Shoot", "04"], ["gallery", "Gallery", "05"], ["hooks", "Hooks", "06"], ["reels", "Reels", "07"], ["reach", "Reach", "08"]];
 type Brand = { id: string; name: string };
 
 export function Sidebar({ brands, email, admin, locked, keyMissing, accessLabel }: { brands: Brand[]; email: string; admin: boolean; locked: boolean; keyMissing: boolean; accessLabel: string | null }) {

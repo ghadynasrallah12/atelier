@@ -29,6 +29,7 @@ export const PATCH = handler(async (req: Request, ctx: RouteContext<"/api/shots/
   const patch: Record<string, unknown> = {};
   if (body.status === "queued" && ["draft", "failed"].includes(shot.status)) { patch.status = "queued"; patch.error = null; }
   if (typeof body.note === "string") patch.note = body.note;
+  if (typeof body.favorite === "boolean") patch.favorite = body.favorite;
   if (!Object.keys(patch).length) return fail("Nothing to change.");
   await sb.from("shots").update(patch).eq("id", id);
   const next = patch.status === "queued" ? await submitShot(id) : (await sb.from("shots").select("*").eq("id", id).single()).data;

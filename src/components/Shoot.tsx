@@ -6,6 +6,8 @@ import type { MoodItem, ShotItem } from "@/lib/load";
 import { SL, CAM_KEYS, LOOKS, buildPrompt, fillBlanks, type Spec, type SlotKey, type Ref } from "@/lib/prompt";
 import { IMAGE_MODELS, VIDEO_MODELS } from "@/lib/higgsfield";
 import { GOOGLE_IMAGE_MODELS, isGoogleModel } from "@/lib/google";
+import { Freestyle } from "./Freestyle";
+import { Lightbox, ResultTile, ENGINE_LABEL, STATUS_LABEL, STATUS_COLOR, type Pick } from "./Results";
 import { LIB } from "@/lib/library";
 
 type Model = { id: string; name: string; look: string; dna: string; ref_mood_id: string | null };
@@ -16,6 +18,7 @@ const DEF = (): State => ({ mode: null, look: "studio", notes: "", promptEdit: n
 export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: string; name: string; line: string; visual: string }; mood: MoodItem[]; shots: ShotItem[]; models: Model[] }) {
   const toast = useToast(); const key = `atelier-shoot2-${brand.id}`;
   const [S, setS] = useState<State>(DEF()); const [mood, setMood] = useState(m0); const [shots, setShots] = useState(s0); const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState<Pick | null>(null); const [tab, setTab] = useState<"guided" | "free">("guided");
   const [gTarget, setGTarget] = useState<"top" | "bottom">("top"); const gUp = useRef<HTMLInputElement>(null); const [adv, setAdv] = useState(false);
   useEffect(() => { try { const s = JSON.parse(localStorage.getItem(key) || "null"); if (s?.v) setS({ ...DEF(), ...s, out: { ...DEF().out, ...(s.out || {}) }, garments: { ...DEF().garments, ...(s.garments || {}) } }); } catch { /* ignore */ } }, [key]);
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify(S)); } catch { /* ignore */ } }, [S, key]);
@@ -85,8 +88,6 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
     return () => clearTimeout(t);
   }, [shots]);
 
-  const SH_LABEL: Record<string, string> = { draft: "Draft", queued: "Queued", generating: "Generating", done: "Done", failed: "Failed" };
-  const SH_COLOR: Record<string, string> = { draft: "var(--muted)", queued: "var(--olive)", generating: "var(--accent)", done: "var(--good)", failed: "var(--bad)" };
   const Step = ({ n, title, hint, done }: { n: number; title: string; hint?: string; done?: boolean }) => (
     <div className="flex items-baseline gap-3 flex-wrap"><span className="w-7 h-7 rounded-full grid place-items-center font-mono text-xs flex-none" style={{ background: done ? "var(--accent)" : "var(--raise)", color: done ? "var(--accent-ink)" : "var(--muted)" }}>{done ? "✓" : n}</span><h3 className="text-lg">{title}</h3>{hint && <span className="text-sm text-muted">{hint}</span>}</div>
   );
@@ -103,10 +104,11 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
 
   return (
     <div className="grid gap-10">
-      <div><div className="sechead"><h2>Shoot</h2><span className="lbl">Five steps · every blank you skip is filled from the brand's rules</span></div>
-        <p className="intro">Pick what you're shooting, upload its product photo, choose the model and the pose, pick a look, shoot. The product in the photo is copied exactly; everything else is yours to set or leave on “your call”.</p></div>
+      <div><div className="sechead"><h2>Shoot</h2><div className="inline-flex border border-line rounded-full overflow-hidden">{([["guided", "Guided"], ["free", "Freestyle"]] as const).map(([k, l]) => <button key={k} type="button" className="px-4 py-2 font-mono text-xs uppercase tracking-widest" style={{ background: tab === k ? "var(--ink)" : "transparent", color: tab === k ? "var(--bg)" : "var(--ink)" }} onClick={() => setTab(k)}>{l}</button>)}</div></div>
+        <p className="intro">{tab === "guided" ? "Pick what you're shooting, upload its product photo, choose the model and the pose, pick a look, shoot. The product in the photo is copied exactly; everything else is yours to set or leave on “your call”." : "Blank page. Write the prompt yourself, attach any references in the order you want to number them, pick the engine. Nothing is added or filled."}</p></div>
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-8 items-start">
+      {tab === "free" && <Freestyle brandId={brand.id} mood={mood} onMood={(m) => setMood((x) => [m, ...x])} onShots={(ns) => setShots((x) => [...ns, ...x])} />}
+      {tab === "guided" && <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-8 items-start">
         <div className="grid gap-8 min-w-0">
           {/* 1 · What */}
           <section className="grid gap-4">
@@ -203,29 +205,28 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
               {!styleList.length && <div className="col-span-4 text-xs text-muted">Upload looks in The House → Moodboard.</div>}</div>
           </div>
         </aside>
-      </div>
+      </div>}
 
       <div className="grid gap-4" id="queue">
-        <div className="sechead"><h2>Shoot queue</h2><span className="lbl">{shots.filter((s) => s.status === "generating" || s.status === "queued").length} running · {shots.filter((s) => s.status === "done").length} done</span></div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
-          {shots.map((s) => { const sp = s.spec || {}; const gT = s.refs?.some((r) => r.role === "garment-top"), gB = s.refs?.some((r) => r.role === "garment-bottom"); const line = [gT ? [sp.topFit, sp.top || "top", "(photo)"].filter(Boolean).join(" ") : [sp.topFit, sp.topColor, sp.top].filter(Boolean).join(" "), gB ? [sp.botFit, sp.bottom || "pants", "(photo)"].filter(Boolean).join(" ") : [sp.botFit, sp.botColor, sp.bottom].filter(Boolean).join(" ")].filter(Boolean).join(" + ") || "brand look"; return (
-            <article key={s.id} className="panel">
-              <div className="flex justify-between gap-2 items-start"><span className="lbl">{s.title ? s.title + " · " : ""}{s.kind === "reel" ? `Reel · ${s.out.duration || 8} s` : `Image · ${s.out.aspect || "4:5"}`}{s.hf_model ? ` · ${s.hf_model}` : ""}</span><span className="pill" style={{ color: SH_COLOR[s.status] }}>{SH_LABEL[s.status] || s.status}</span></div>
-              <p className="text-sm"><strong>{line}</strong>{sp.model ? ` on ${sp.model.startsWith("house:") ? models.find((m) => m.id === sp.model.slice(6))?.name || "house model" : sp.model}` : ""}{[sp.pose, sp.bg].filter(Boolean).length ? ". " + [sp.pose, sp.bg].filter(Boolean).join(", ") : ""}</p>
-              {s.refs?.length > 0 && <div className="flex gap-1">{s.refs.map((r, i) => { const m = moodById(r.moodId); return m?.url ? <span key={i} className="grid justify-items-center gap-0.5"><img src={m.url} alt={m.note} className="w-[34px] h-[42px] object-cover rounded bg-sunk" /><span className="lbl" style={{ fontSize: 9 }}>{r.role.replace("garment-", "")} {i + 1}</span></span> : null; })}</div>}
-              {s.results?.length > 0 && <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-1.5">{s.results.map((r, i) => r.url ? <a key={i} href={r.url} target="_blank" rel="noopener" className="block bg-sunk border border-line rounded overflow-hidden" style={{ aspectRatio: s.kind === "reel" ? "9/16" : "4/5" }}>{s.kind === "reel" ? <video src={r.url} muted loop playsInline preload="metadata" className="w-full h-full object-cover" onMouseEnter={(e) => e.currentTarget.play().catch(() => {})} onMouseLeave={(e) => e.currentTarget.pause()} /> : <img src={r.url} alt={`Result ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />}</a> : null)}</div>}
+        <div className="sechead"><h2>Queue</h2><div className="flex items-center gap-3"><span className="lbl">{shots.filter((s) => s.status === "generating" || s.status === "queued").length} running · {shots.filter((s) => s.status === "done").length} done</span><Link href={`/b/${brand.id}/gallery`} className="btn sm ghost">Open the gallery →</Link></div></div>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
+          {shots.slice(0, 24).map((s) => { const sp = s.spec || {}; const gT = s.refs?.some((r) => r.role === "garment-top"), gB = s.refs?.some((r) => r.role === "garment-bottom"); const line = s.mode === "refine" ? "Refine" : s.mode === "freestyle" ? "Freestyle" : [gT ? [sp.topFit, sp.top || "top", "(photo)"].filter(Boolean).join(" ") : [sp.topFit, sp.topColor, sp.top].filter(Boolean).join(" "), gB ? [sp.botFit, sp.bottom || "pants", "(photo)"].filter(Boolean).join(" ") : [sp.botFit, sp.botColor, sp.bottom].filter(Boolean).join(" ")].filter(Boolean).join(" + ") || "brand look"; return (
+            <article key={s.id} className="card grid gap-3 p-3">
+              <div className="flex justify-between gap-2 items-start"><span className="lbl truncate">{s.kind === "reel" ? `Reel · ${s.out.duration || 8} s` : `Image · ${s.out.aspect || "4:5"}`}{s.hf_model ? ` · ${ENGINE_LABEL[s.hf_model] || s.hf_model}` : ""}{s.out.size ? ` · ${s.out.size}` : ""}</span><span className="pill flex-none" style={{ color: STATUS_COLOR[s.status] }}>{STATUS_LABEL[s.status] || s.status}</span></div>
+              <p className="text-sm min-w-0"><strong>{line}</strong>{s.mode !== "refine" && s.mode !== "freestyle" && sp.model ? ` on ${sp.model.startsWith("house:") ? models.find((m) => m.id === sp.model.slice(6))?.name || "house model" : sp.model}` : ""}{s.note && (s.mode === "refine" || s.mode === "freestyle") ? <span className="text-muted"> · {s.note.replace(/^Refine: /, "")}</span> : ""}</p>
+              {s.status === "done" && s.results?.length > 0 ? <div className={"grid gap-1.5 " + (s.results.length > 1 ? "grid-cols-2" : "grid-cols-1")}>{s.results.map((r, i) => r.url ? <ResultTile key={i} shot={s} index={i} onOpen={setOpen} /> : null)}</div>
+                : s.status === "generating" || s.status === "queued" ? <div className="aspect-[4/5] max-h-56 bg-sunk rounded-lg grid place-items-center animate-pulse lbl">{s.status === "queued" ? "queued" : "generating…"}</div> : null}
               {s.error && <p className="text-sm" style={{ color: "var(--bad)" }}>{s.error}</p>}
-              {s.note && !s.error && <p className="text-sm text-muted">{s.note}</p>}
               <div className="flex gap-3 flex-wrap items-center">
                 {(s.status === "draft" || s.status === "failed") && <button className="btn sm" onClick={async () => { try { const n = await api<ShotItem>(`/api/shots/${s.id}`, "PATCH", { status: "queued" }); setShots((x) => x.map((y) => (y.id === s.id ? n : y))); } catch (err) { toast((err as Error).message); } }}>{s.status === "failed" ? "Retry" : "Shoot it"}</button>}
-                {s.status === "done" && s.kind === "image" && s.results?.[0] && <button className="btn sm accent" onClick={async () => { try { const r = await api<{ shots: ShotItem[] }>("/api/shots", "POST", { brandId: brand.id, kind: "reel", spec: { ...sp, move: sp.move || "slow push-in toward the subject", act: sp.act || "breathes and barely moves" }, out: { aspect: "9:16", duration: 6, audio: true, model: "kling-o3" }, refs: s.refs, status: "queued", title: "Animated from image" }); setShots((x) => [...r.shots, ...x]); toast("Reel queued."); } catch (err) { toast((err as Error).message); } }}>Animate into a reel</button>}
-                <button className="btn sm ghost" onClick={() => { setS((x) => ({ ...x, kind: s.kind, mode: gT && gB ? "both" : gB ? "bottom" : "top", v: { ...x.v, ...sp }, notes: "", promptEdit: s.prompt, refs: (s.refs || []).filter((r) => r.role === "style").map((r) => r.moodId), garments: { top: s.refs?.find((r) => r.role === "garment-top")?.moodId || null, bottom: s.refs?.find((r) => r.role === "garment-bottom")?.moodId || null } })); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Load into builder</button>
+                {s.mode !== "refine" && <button className="btn sm ghost" onClick={() => { setS((x) => ({ ...x, kind: s.kind, mode: gT && gB ? "both" : gB ? "bottom" : "top", v: { ...x.v, ...sp }, notes: "", promptEdit: s.prompt, refs: (s.refs || []).filter((r) => r.role === "style").map((r) => r.moodId), garments: { top: s.refs?.find((r) => r.role === "garment-top")?.moodId || null, bottom: s.refs?.find((r) => r.role === "garment-bottom")?.moodId || null } })); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Load into builder</button>}
                 <DangerButton onConfirm={async () => { try { await api(`/api/shots/${s.id}`, "DELETE"); setShots((x) => x.filter((y) => y.id !== s.id)); } catch (err) { toast((err as Error).message); } }} />
               </div>
             </article>); })}
           {!shots.length && <div className="empty col-span-full">No shots yet. Build one above.</div>}
         </div>
       </div>
+      {open && <Lightbox pick={open} list={shots.filter((s) => s.status === "done").flatMap((s) => s.results.map((_, i) => ({ shot: s, index: i }))).filter((p) => p.shot.results[p.index]?.url)} onClose={() => setOpen(null)} onChange={setOpen} brandId={brand.id} models={models} onShots={(fn) => setShots(fn)} />}
     </div>
   );
 }

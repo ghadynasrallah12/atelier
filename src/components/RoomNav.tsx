@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const ROOMS = [["house", "The House"], ["library", "Library"], ["models", "Models"], ["shoot", "Shoot"], ["hooks", "Hooks"], ["reels", "Reels"], ["reach", "Reach"]];
+const ROOMS = [["house", "The House"], ["library", "Library"], ["models", "Models"], ["shoot", "Shoot"], ["gallery", "Gallery"], ["hooks", "Hooks"], ["reels", "Reels"], ["reach", "Reach"]];
 
 export function RoomNav({ brandId }: { brandId: string }) {
   const path = usePathname();

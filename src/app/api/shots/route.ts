@@ -10,7 +10,7 @@ const Body = z.object({
   kind: z.enum(["image", "reel"]).default("image"),
   spec: z.record(z.string(), z.string()).default({}),
   out: z.object({ aspect: z.string().optional(), count: z.number().int().min(1).max(4).optional(), duration: z.number().optional(), audio: z.boolean().optional(), model: z.string().optional(), size: z.string().optional() }).default({}),
-  refs: z.array(z.object({ moodId: z.string().uuid(), role: z.enum(["garment-top", "garment-bottom", "model", "style"]), note: z.string().optional() })).default([]),
+  refs: z.array(z.object({ moodId: z.string().uuid(), role: z.enum(["garment-top", "garment-bottom", "model", "style", "source"]), note: z.string().optional() })).default([]),
   status: z.enum(["draft", "queued"]).default("queued"),
   title: z.string().optional(),
   exampleFor: z.string().optional(),
@@ -18,6 +18,8 @@ const Body = z.object({
   reelId: z.string().uuid().optional(),
   promptOverride: z.string().optional(),
   notes: z.string().max(1500).optional(),
+  mode: z.enum(["builder", "freestyle", "refine", "candidate", "example"]).optional(),
+  parentId: z.string().uuid().optional(),
 });
 
 /** Create a shot. Queued shots are submitted to Higgsfield immediately (on the user's key). */
@@ -32,7 +34,9 @@ export const POST = handler(async (req: Request) => {
   }
   const spec = b.spec as Spec;
   const hasGarment = !!(spec.top || spec.bottom || b.refs.some((r) => r.role.startsWith("garment")));
-  if (!hasGarment && !b.reelId && !b.exampleFor && !b.forModel) return fail("Add a top or pants: a product photo, or pick the type.");
+  const free = b.mode === "freestyle" || b.mode === "refine";
+  if (free && !(b.promptOverride || "").trim()) return fail("Write what you want to see.");
+  if (!hasGarment && !b.reelId && !b.exampleFor && !b.forModel && !free) return fail("Add a top or pants: a product photo, or pick the type.");
   const { data: models } = await sb.from("models").select("id,name,dna").eq("brand_id", brand.id);
   const bible = (brand.bible || {}) as { visual?: string; line?: string };
   const filled = fillBlanks(spec, bible, b.kind, { top: !!spec.top || b.refs.some((r) => r.role === "garment-top"), bottom: !!spec.bottom || b.refs.some((r) => r.role === "garment-bottom") });
@@ -43,7 +47,7 @@ export const POST = handler(async (req: Request) => {
   for (let i = 0; i < count; i++) {
     rows.push({
       brand_id: brand.id, kind: b.kind, title: b.title || null, spec, out: b.out, refs: b.refs,
-      prompt: (b.promptOverride || sendPrompt) + (b.notes?.trim() ? `\n\nCORRECTIONS (must follow exactly): ${b.notes.trim()}` : ""), autos, status: b.status, example_for: b.exampleFor || null, for_model: b.forModel || null, reel_id: b.reelId || null,
+      prompt: (b.promptOverride || sendPrompt) + (b.notes?.trim() ? `\n\nCORRECTIONS (must follow exactly): ${b.notes.trim()}` : ""), autos, status: b.status, example_for: b.exampleFor || null, for_model: b.forModel || null, reel_id: b.reelId || null, parent_id: b.parentId || null, mode: b.mode || (b.forModel ? "candidate" : b.exampleFor ? "example" : "builder"),
       note: autos.length ? `Filled for you: ${autos.join(", ")}.` : "",
     });
   }

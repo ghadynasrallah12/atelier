@@ -47,7 +47,7 @@ export const LOOKS: { id: string; name: string; blurb: string; cam: Spec; bg?: s
 
 export const DEFAULT_CAM: Spec = { shot: "full shot, head to toe", lens: "50mm lens, natural perspective", angle: "eye level", lsrc: "soft studio strobes through a large softbox", ldir: "backlit, light wrapping the edges", lq: "soft, wrapping light", temp: "neutral daylight 5000K", comp: "centered symmetrical composition", tex: "100% premium heavyweight cotton, visibly weighty, realistic folds and natural drape", aes: "minimalist aesthetic: neutral palette, negative space, soft diffused light", anchor: "quiet luxury editorial (Fear of God)", mood: "exclusivity, status, quiet power" };
 
-export type RefRole = "garment-top" | "garment-bottom" | "model" | "style";
+export type RefRole = "garment-top" | "garment-bottom" | "model" | "style" | "source";
 export type Ref = { moodId: string; role: RefRole; note?: string };
 export type HouseModel = { id: string; name: string; dna: string };
 
