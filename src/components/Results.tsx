@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api, useToast, DangerButton } from "./ui";
-import type { ShotItem } from "@/lib/load";
+import type { ShotItem, MoodItem } from "@/lib/load";
 import { IMAGE_MODELS } from "@/lib/higgsfield";
 import { GOOGLE_IMAGE_MODELS, isGoogleModel } from "@/lib/google";
 
@@ -35,7 +35,7 @@ export function ResultTile({ shot, index, onOpen, size = "md" }: { shot: ShotIte
 }
 
 /** Fullscreen viewer with the whole action set. */
-export function Lightbox({ pick, list, onClose, onChange, brandId, models, onShots }: { pick: Pick; list: Pick[]; onClose: () => void; onChange: (p: Pick) => void; brandId: string; models: { id: string; name: string }[]; onShots: (fn: (x: ShotItem[]) => ShotItem[]) => void }) {
+export function Lightbox({ pick, list, onClose, onChange, brandId, models, onShots, onMood }: { pick: Pick; list: Pick[]; onClose: () => void; onChange: (p: Pick) => void; brandId: string; models: { id: string; name: string }[]; onShots: (fn: (x: ShotItem[]) => ShotItem[]) => void; onMood?: (m: MoodItem) => void }) {
   const toast = useToast(); const [refine, setRefine] = useState(false); const [busy, setBusy] = useState("");
   const { shot, index } = pick; const r = shot.results[index];
   const i = list.findIndex((p) => p.shot.id === shot.id && p.index === index);
@@ -44,8 +44,9 @@ export function Lightbox({ pick, list, onClose, onChange, brandId, models, onSho
   const sp = shot.spec || {};
   const modelName = sp.model?.startsWith("house:") ? models.find((m) => m.id === sp.model!.slice(6))?.name || "house model" : sp.model;
   async function fav() { try { const n = await api<ShotItem>(`/api/shots/${shot.id}`, "PATCH", { favorite: !shot.favorite }); onShots((x) => x.map((y) => (y.id === shot.id ? { ...y, favorite: n.favorite } : y))); onChange({ shot: { ...shot, favorite: n.favorite }, index }); } catch (err) { toast((err as Error).message); } }
-  async function keep() { setBusy("keep"); try { await api("/api/shots/keep", "POST", { brandId, shotId: shot.id, index, note: shot.title || "Generated look" }); toast("Saved to the moodboard as a style reference."); } catch (err) { toast((err as Error).message); } finally { setBusy(""); } }
-  async function animate() { setBusy("anim"); try { const res = await api<{ shots: ShotItem[] }>("/api/shots", "POST", { brandId, kind: "reel", spec: { ...sp, move: sp.move || "slow push-in toward the subject", act: sp.act || "breathes and barely moves" }, out: { aspect: "9:16", duration: 6, audio: true, model: "kling-o3" }, refs: shot.refs, status: "queued", title: "Animated from image", parentId: shot.id }); onShots((x) => [...res.shots, ...x]); toast("Reel queued."); } catch (err) { toast((err as Error).message); } finally { setBusy(""); } }
+  async function keep() { setBusy("keep"); try { const m = await api<MoodItem>("/api/shots/keep", "POST", { brandId, shotId: shot.id, index, note: shot.title || "Generated look" }); onMood?.(m); toast("Saved to the moodboard as a style reference."); } catch (err) { toast((err as Error).message); } finally { setBusy(""); } }
+  const [anim, setAnim] = useState(false);
+  async function animate(move: string, act: string, engine: string) { setBusy("anim"); try { const { shot: ns } = await api<{ shot: ShotItem }>("/api/shots/refine", "POST", { brandId, shotId: shot.id, index, kind: "reel", instruction: act, move, engine, duration: 6 }); onShots((x) => [ns, ...x]); toast("Reel queued: it starts from this exact image."); setAnim(false); } catch (err) { toast((err as Error).message); } finally { setBusy(""); } }
   if (!r?.url) return null;
   return (
     <div className="fixed inset-0 z-50 bg-black/92 backdrop-blur-sm grid md:grid-cols-[1fr_360px]" role="dialog" aria-modal>
@@ -63,8 +64,9 @@ export function Lightbox({ pick, list, onClose, onChange, brandId, models, onSho
           <button className={"btn sm " + (refine ? "accent" : "ghost")} onClick={() => setRefine(!refine)} disabled={shot.kind === "reel"}>Refine</button>
           <button className="btn sm ghost" onClick={fav}>{shot.favorite ? "★ Favorited" : "☆ Favorite"}</button>
           <button className="btn sm ghost" onClick={keep} disabled={busy === "keep" || shot.kind === "reel"}>Save to board</button>
-          {shot.kind === "image" && <button className="btn sm ghost col-span-2" onClick={animate} disabled={busy === "anim"}>Animate into a reel</button>}
+          {shot.kind === "image" && <button className={"btn sm col-span-2 " + (anim ? "accent" : "ghost")} onClick={() => setAnim(!anim)} disabled={busy === "anim"}>Animate into a reel</button>}
         </div>
+        {anim && <AnimatePanel busy={busy === "anim"} onGo={animate} />}
         {refine && <RefinePanel brandId={brandId} shot={shot} index={index} onDone={(s) => { onShots((x) => [s, ...x]); setRefine(false); onClose(); }} />}
         <details className="more"><summary>Prompt</summary><div className="prompt mt-2 max-h-64 overflow-y-auto">{shot.prompt}</div></details>
         {shot.refs?.length > 0 && <div className="lbl">References: {shot.refs.map((x, j) => `${j + 1} ${x.role.replace("garment-", "")}`).join(" · ")}</div>}
@@ -92,6 +94,22 @@ export function RefinePanel({ brandId, shot, index, onDone }: { brandId: string;
       </div>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> Re-attach the product and model references so the engine can check the details</label>
       <div className="flex gap-2 items-center"><button className="btn accent sm" disabled={busy || text.trim().length < 3} onClick={go}>{busy ? "Sending…" : "Refine"}</button><span className="text-xs text-muted">Tip: for a 4K master, pick Nano Banana Pro → 4K and write “no changes”.</span></div>
+    </div>
+  );
+}
+
+/** Turn one still into a 6-second reel that starts from that exact frame. */
+export function AnimatePanel({ busy, onGo }: { busy: boolean; onGo: (move: string, act: string, engine: string) => void }) {
+  const [move, setMove] = useState("slow push-in toward the subject"); const [act, setAct] = useState("breathes and barely moves"); const [engine, setEngine] = useState("kling-o3");
+  const MOVES = ["static shot, locked camera", "slow push-in toward the subject", "slow pan left across the scene", "tracking shot following the subject from the side, smooth and steady", "slow tilt up from the shoes to the face", "very slow orbit around the subject", "steady controlled handheld"];
+  const ACTS = ["breathes and barely moves", "turns slowly to face the camera", "lets the wind move the fabric", "looks up into the light", "adjusts the collar once", "turns away to show the back", "walks toward the camera"];
+  return (
+    <div className="panel bg-raise">
+      <span className="lbl">Animate · starts from this exact image</span>
+      <label className="field"><span className="lbl">Camera</span><select className="input text-sm" value={move} onChange={(e) => setMove(e.target.value)}>{MOVES.map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
+      <label className="field"><span className="lbl">The model</span><select className="input text-sm" value={act} onChange={(e) => setAct(e.target.value)}>{ACTS.map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
+      <label className="field"><span className="lbl">Engine</span><select className="input text-sm" value={engine} onChange={(e) => setEngine(e.target.value)}><option value="kling-o3">Kling O3</option><option value="seedance-2.5">Seedance 2.5</option></select></label>
+      <div><button className="btn accent sm" disabled={busy} onClick={() => onGo(move, act, engine)}>{busy ? "Sending…" : "Animate · 6 s"}</button></div>
     </div>
   );
 }

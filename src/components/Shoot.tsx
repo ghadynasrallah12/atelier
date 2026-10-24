@@ -20,14 +20,21 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
   const [S, setS] = useState<State>(DEF()); const [mood, setMood] = useState(m0); const [shots, setShots] = useState(s0); const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<Pick | null>(null); const [tab, setTab] = useState<"guided" | "free">("guided");
   const [gTarget, setGTarget] = useState<"top" | "bottom">("top"); const gUp = useRef<HTMLInputElement>(null); const [adv, setAdv] = useState(false);
-  useEffect(() => { try { const s = JSON.parse(localStorage.getItem(key) || "null"); if (s?.v) setS({ ...DEF(), ...s, out: { ...DEF().out, ...(s.out || {}) }, garments: { ...DEF().garments, ...(s.garments || {}) } }); } catch { /* ignore */ } }, [key]);
+  useEffect(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem(key) || "null"); if (!s?.v) return;
+      const d = DEF(); const v: Spec = { ...d.v }; for (const [k, val] of Object.entries(s.v)) if (typeof val === "string" && k in SL) v[k as SlotKey] = val;
+      if (v.model?.startsWith("house:") && !models.some((m) => "house:" + m.id === v.model)) delete v.model;
+      setS({ ...d, mode: ["top", "bottom", "both"].includes(s.mode) ? s.mode : null, look: typeof s.look === "string" ? s.look : d.look, kind: s.kind === "reel" ? "reel" : "image", notes: typeof s.notes === "string" ? s.notes : "", promptEdit: typeof s.promptEdit === "string" ? s.promptEdit : null, v, custom: s.custom && typeof s.custom === "object" ? s.custom : {}, out: { ...d.out, ...(s.out && typeof s.out === "object" ? s.out : {}) }, refs: Array.isArray(s.refs) ? s.refs.filter((x: unknown) => typeof x === "string") : [], garments: { top: typeof s.garments?.top === "string" ? s.garments.top : null, bottom: typeof s.garments?.bottom === "string" ? s.garments.bottom : null } });
+    } catch { /* ignore */ }
+  }, [key, models]);
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify(S)); } catch { /* ignore */ } }, [S, key]);
 
   const moodById = (id: string | null) => mood.find((m) => m.id === id);
   const garmentsList = mood.filter((m) => m.garment && m.url);
-  const styleList = mood.filter((m) => !m.garment && m.url && m.kind === "image");
+  const styleList = mood.filter((m) => !m.garment && m.url && m.kind === "image" && !(m.tags || []).includes("model") && m.note !== "Source for refine");
   const needTop = S.mode === "top" || S.mode === "both", needBot = S.mode === "bottom" || S.mode === "both";
-  const gt = !!S.garments.top, gb = !!S.garments.bottom;
+  const gt = !!moodById(S.garments.top), gb = !!moodById(S.garments.bottom);
   const ready = !!S.mode && (!needTop || gt) && (!needBot || gb);
   const houseId = S.v.model?.startsWith("house:") ? S.v.model.slice(6) : null;
   const modelRefId = houseId ? models.find((m) => m.id === houseId)?.ref_mood_id || null : null;
@@ -50,7 +57,7 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
   const prompt = S.promptEdit ?? generated;
 
   const set = (k: SlotKey, val: string) => setS((s) => { const custom = { ...s.custom }; if (val === "__other") { custom[k] = true; return { ...s, custom, v: { ...s.v, [k]: "" } }; } delete custom[k]; return { ...s, custom, v: { ...s.v, [k]: val } }; });
-  function Blank({ k, house }: { k: SlotKey; house?: boolean }) {
+  const blank = (k: SlotKey, house?: boolean) => {
     const s = SL[k], v = S.v[k] || "", custom = S.custom[k];
     return (<span className="blank">
       <select aria-label={s.name} className={v || custom ? "" : "empty"} value={custom ? "__other" : v} onChange={(e) => set(k, e.target.value)}>
@@ -62,7 +69,7 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
       {custom && <input aria-label={"Your own " + s.name} value={v} placeholder={s.name} onChange={(e) => setS((x) => ({ ...x, v: { ...x.v, [k]: e.target.value } }))} />}
       <span className="tag">{s.name}</span>
     </span>);
-  }
+  };
   function applyLook(id: string) { const L = LOOKS.find((l) => l.id === id)!; setS((s) => ({ ...s, look: id, v: { ...s.v, ...L.cam, bg: s.v.bg || L.bg || "" } })); }
 
   async function uploadGarment(f: File, slot: "top" | "bottom") {
@@ -88,10 +95,10 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
     return () => clearTimeout(t);
   }, [shots]);
 
-  const Step = ({ n, title, hint, done }: { n: number; title: string; hint?: string; done?: boolean }) => (
+  const step = (n: number, title: string, hint?: string, done?: boolean) => (
     <div className="flex items-baseline gap-3 flex-wrap"><span className="w-7 h-7 rounded-full grid place-items-center font-mono text-xs flex-none" style={{ background: done ? "var(--accent)" : "var(--raise)", color: done ? "var(--accent-ink)" : "var(--muted)" }}>{done ? "✓" : n}</span><h3 className="text-lg">{title}</h3>{hint && <span className="text-sm text-muted">{hint}</span>}</div>
   );
-  const GarmentBox = ({ slot }: { slot: "top" | "bottom" }) => { const m = moodById(S.garments[slot]); const n = slot === "top" ? 1 : needTop ? 2 : 1; const fitK: SlotKey = slot === "top" ? "topFit" : "botFit", typeK: SlotKey = slot === "top" ? "top" : "bottom"; return (
+  const garmentBox = (slot: "top" | "bottom") => { const m = moodById(S.garments[slot]); const n = slot === "top" ? 1 : needTop ? 2 : 1; const fitK: SlotKey = slot === "top" ? "topFit" : "botFit", typeK: SlotKey = slot === "top" ? "top" : "bottom"; return (
     <div className="card p-3 grid gap-3" style={m ? { borderColor: "var(--accent)" } : {}} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) uploadGarment(f, slot); }}>
       <div className="flex justify-between items-baseline"><span className="lbl">{slot === "top" ? "Top" : "Pants"} · image {n}</span>{m && <button className="linkbtn danger" onClick={() => setS({ ...S, garments: { ...S.garments, [slot]: null } })}>Clear</button>}</div>
       <button type="button" className="aspect-square bg-sunk rounded-lg overflow-hidden grid place-items-center" onClick={() => { setGTarget(slot); gUp.current?.click(); }}>{m?.url ? <img src={m.url} alt={m.note} className="w-full h-full object-contain" /> : <span className="lbl text-center p-3">Tap to upload the product photo<br />or drop it here</span>}</button>
@@ -112,15 +119,15 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
         <div className="grid gap-8 min-w-0">
           {/* 1 · What */}
           <section className="grid gap-4">
-            <Step n={1} title="What are you shooting?" done={!!S.mode} />
+            {step(1, "What are you shooting?", undefined, !!S.mode)}
             <div className="grid grid-cols-3 gap-3">{([["top", "Top only", "A tee, hoodie, jacket…"], ["bottom", "Pants only", "Trousers, shorts, a skirt…"], ["both", "Top + pants", "The full outfit"]] as const).map(([m, t, d]) => <button key={m} type="button" className="card p-4 text-left grid gap-1 transition-colors" style={S.mode === m ? { borderColor: "var(--accent)", background: "var(--raise)" } : {}} onClick={() => setS({ ...S, mode: m })}><div className="font-semibold">{t}</div><div className="text-xs text-muted">{d}</div></button>)}</div>
-            {S.mode && <div className={"grid gap-3 " + (S.mode === "both" ? "sm:grid-cols-2" : "sm:grid-cols-2")}>{needTop && <GarmentBox slot="top" />}{needBot && <GarmentBox slot="bottom" />}</div>}
+            {S.mode && <div className={"grid gap-3 " + (S.mode === "both" ? "sm:grid-cols-2" : "sm:grid-cols-2")}>{needTop && garmentBox("top")}{needBot && garmentBox("bottom")}</div>}
             <input ref={gUp} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadGarment(f, gTarget); }} />
           </section>
 
           {/* 2 · Who */}
           <section className="grid gap-4">
-            <Step n={2} title="Who wears it?" hint={models.length ? "Your house models keep the same face across the feed." : "Create a house model to lock one face across the feed."} done={!!S.v.model} />
+            {step(2, "Who wears it?", models.length ? "Your house models keep the same face across the feed." : "Create a house model to lock one face across the feed.", !!S.v.model)}
             <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3">
               {models.map((m) => { const ref = moodById(m.ref_mood_id); const on = houseId === m.id; return (
                 <button key={m.id} type="button" className="card text-left grid grid-rows-[auto_auto]" style={on ? { borderColor: "var(--accent)" } : {}} onClick={() => set("model", "house:" + m.id)}>
@@ -129,19 +136,19 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
                 </button>); })}
               <Link href={`/b/${brand.id}/models`} className="card grid place-items-center text-center p-3 text-sm text-muted border-dashed min-h-[120px]">+ New house model</Link>
             </div>
-            <div className="text-sm text-muted">Or describe one: <Blank k="model" /> · expression <Blank k="expr" /></div>
+            <div className="text-sm text-muted">Or describe one: {blank("model")} · expression {blank("expr")}</div>
           </section>
 
           {/* 3 · Pose & place */}
           <section className="grid gap-4">
-            <Step n={3} title="Pose and place" done={!!S.v.pose} />
+            {step(3, "Pose and place", undefined, !!S.v.pose)}
             <div className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-2">{LIB.pose.items.map((p) => { const on = S.v.pose === p.line; return <button key={p.k} type="button" title={p.eff} className="card text-left" style={on ? { borderColor: "var(--accent)" } : {}} onClick={() => set("pose", on ? "" : p.line)}><img src={`/library/pose.${p.k}.webp`} alt={p.name} className="w-full aspect-[4/5] object-cover" loading="lazy" /><div className="p-1.5 text-[11px] leading-tight">{p.name}</div></button>; })}</div>
-            <p className="sentence">In <Blank k="bg" />. On the feet, <Blank k="shoes" />; <Blank k="acc" />.</p>
+            <p className="sentence">In {blank("bg")}. On the feet, {blank("shoes")}; {blank("acc")}.</p>
           </section>
 
           {/* 4 · Look */}
           <section className="grid gap-4">
-            <Step n={4} title="The look" hint="Camera and light in one tap." done />
+            {step(4, "The look", "Camera and light in one tap.", true)}
             <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">{LOOKS.map((L) => <button key={L.id} type="button" className="card p-3 text-left grid gap-1" style={S.look === L.id ? { borderColor: "var(--accent)", background: "var(--raise)" } : {}} onClick={() => applyLook(L.id)}><div className="font-semibold text-sm">{L.name}</div><div className="text-xs text-muted">{L.blurb}</div></button>)}</div>
             <button className="linkbtn justify-self-start" onClick={() => setAdv(!adv)}>{adv ? "– Hide" : "+ Fine-tune"} camera & light</button>
             {adv && <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
@@ -155,7 +162,7 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
 
           {/* 5 · Output */}
           <section className="grid gap-4">
-            <Step n={5} title="Shoot" done={ready} />
+            {step(5, "Shoot", undefined, ready)}
             <div className="flex gap-4 flex-wrap items-end">
               <div className="inline-flex border border-line rounded-full overflow-hidden self-end">{(["image", "reel"] as const).map((k) => <button key={k} type="button" className="px-4 py-2 font-mono text-xs uppercase tracking-widest" style={{ background: S.kind === k ? "var(--ink)" : "transparent", color: S.kind === k ? "var(--bg)" : "var(--ink)" }} onClick={() => setS({ ...S, kind: k })}>{k}</button>)}</div>
               {S.kind === "image" ? (<>
@@ -226,7 +233,7 @@ export function Shoot({ brand, mood: m0, shots: s0, models }: { brand: { id: str
           {!shots.length && <div className="empty col-span-full">No shots yet. Build one above.</div>}
         </div>
       </div>
-      {open && <Lightbox pick={open} list={shots.filter((s) => s.status === "done").flatMap((s) => s.results.map((_, i) => ({ shot: s, index: i }))).filter((p) => p.shot.results[p.index]?.url)} onClose={() => setOpen(null)} onChange={setOpen} brandId={brand.id} models={models} onShots={(fn) => setShots(fn)} />}
+      {open && <Lightbox pick={open} list={shots.filter((s) => s.status === "done").flatMap((s) => s.results.map((_, i) => ({ shot: s, index: i }))).filter((p) => p.shot.results[p.index]?.url)} onClose={() => setOpen(null)} onChange={setOpen} brandId={brand.id} models={models} onShots={(fn) => setShots(fn)} onMood={(m) => setMood((x) => [m, ...x])} />}
     </div>
   );
 }

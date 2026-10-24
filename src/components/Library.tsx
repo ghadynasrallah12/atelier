@@ -26,7 +26,7 @@ export function Library({ brandId, examples }: { brandId: string; examples: Reco
   async function example(tag: string, slot: string, val: string, name: string) {
     try {
       const spec = { ...DEFAULT_CAM, top: "heavyweight T-shirt", topFit: "oversized", topColor: "cream", bottom: "elastic-waist trousers", botFit: "wide-leg", botColor: "taupe", pose: "standing straight, centered, arms relaxed", bg: "a seamless grey studio with a matte beige micro-concrete floor", [slot]: val };
-      await api("/api/shots", "POST", { brandId, kind: slot === "move" ? "reel" : "image", spec, out: slot === "move" ? { aspect: "9:16", duration: 6 } : { aspect: "4:5", count: 1 }, refs: [], status: "queued", exampleFor: tag, title: "Library example · " + name });
+      await api("/api/shots", "POST", { brandId, kind: slot === "move" ? "reel" : "image", spec, out: slot === "move" ? { aspect: "9:16", duration: 6, audio: true, model: "kling-o3" } : { aspect: "4:5", count: 1 }, refs: [], status: "queued", exampleFor: tag, title: "Library example · " + name });
       toast("Example queued on your Higgsfield balance. See the Shoot queue.");
     } catch (err) { toast((err as Error).message); }
   }

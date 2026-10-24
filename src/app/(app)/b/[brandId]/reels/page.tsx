@@ -19,5 +19,5 @@ export default async function ReelsPage({ params }: { params: Promise<{ brandId:
   ]);
   const videoUrls: Record<string, string> = {};
   for (const s of shots) if (s.reel_id && s.results?.[0]?.url) videoUrls[s.reel_id] = s.results[0].url;
-  return <Reels brandId={brandId} briefs={briefs || []} reels={reels || []} hooks={hooks || []} quotes={quotes || []} models={models || []} followers={snaps?.[0]?.followers || null} videoUrls={videoUrls} styleRefs={mood.filter((m) => !m.garment && m.kind === "image" && m.url).slice(0, 3).map((m) => m.id)} />;
+  return <Reels brandId={brandId} briefs={briefs || []} reels={reels || []} hooks={hooks || []} quotes={quotes || []} models={models || []} followers={snaps?.[0]?.followers || null} videoUrls={videoUrls} styleRefs={mood.filter((m) => !m.garment && m.kind === "image" && m.url && !(m.tags || []).includes("model") && m.note !== "Source for refine").slice(0, 3).map((m) => m.id)} />;
 }

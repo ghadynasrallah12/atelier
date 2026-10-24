@@ -36,7 +36,7 @@ export const POST = handler(async (req: Request) => {
   const hasGarment = !!(spec.top || spec.bottom || b.refs.some((r) => r.role.startsWith("garment")));
   const free = b.mode === "freestyle" || b.mode === "refine";
   if (free && !(b.promptOverride || "").trim()) return fail("Write what you want to see.");
-  if (!hasGarment && !b.reelId && !b.exampleFor && !b.forModel && !free) return fail("Add a top or pants: a product photo, or pick the type.");
+  if (!hasGarment && !b.reelId && !b.exampleFor && !b.forModel && !b.parentId && !free) return fail("Add a top or pants: a product photo, or pick the type.");
   const { data: models } = await sb.from("models").select("id,name,dna").eq("brand_id", brand.id);
   const bible = (brand.bible || {}) as { visual?: string; line?: string };
   const filled = fillBlanks(spec, bible, b.kind, { top: !!spec.top || b.refs.some((r) => r.role === "garment-top"), bottom: !!spec.bottom || b.refs.some((r) => r.role === "garment-bottom") });

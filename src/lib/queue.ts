@@ -36,9 +36,9 @@ async function referenceData(refs: ShotRow["refs"]) {
   const out: { data: string; mimeType: string }[] = [];
   for (const r of refs) {
     const { data: m } = await sb.from("mood").select("path").eq("id", r.moodId).single();
-    if (!m?.path) continue;
+    if (!m?.path) throw new Error(`A reference image (${r.role.replace("garment-", "")}) was deleted from the board. Re-attach it and shoot again.`);
     const { bytes, contentType } = await downloadMedia(m.path);
-    out.push({ data: Buffer.from(bytes).toString("base64"), mimeType: /^image\/(jpeg|png|webp)$/.test(contentType) ? contentType : "image/png" });
+    out.push({ data: Buffer.from(bytes).toString("base64"), mimeType: /^image\/(jpeg|png|webp|gif)$/.test(contentType) ? contentType : "image/png" });
   }
   return out;
 }
@@ -49,7 +49,7 @@ async function referenceUrls(key: HfKey, refs: ShotRow["refs"]) {
   const urls: string[] = [];
   for (const r of refs) {
     const { data: m } = await sb.from("mood").select("path").eq("id", r.moodId).single();
-    if (!m?.path) continue;
+    if (!m?.path) throw new Error(`A reference image (${r.role.replace("garment-", "")}) was deleted from the board. Re-attach it and shoot again.`);
     const { bytes, contentType } = await downloadMedia(m.path);
     const ct = /^image\/(jpeg|jpg|png|webp|gif)$/.test(contentType) ? contentType : "image/png";
     urls.push(await uploadFile(key, bytes, ct));
@@ -133,13 +133,22 @@ export async function syncShot(shotId: string) {
   const files = shot.kind === "reel" ? (st.video?.url ? [{ url: st.video.url, type: "video" }] : []) : (st.images || []).map((i) => ({ url: i.url, type: "image" }));
   const results: ShotRow["results"] = [];
   for (const f of files) {
-    try {
-      const r = await fetch(f.url);
-      const ct = r.headers.get("content-type") || (f.type === "video" ? "video/mp4" : "image/png");
-      const ext = f.type === "video" ? "mp4" : ct.includes("jpeg") ? "jpg" : ct.includes("webp") ? "webp" : "png";
-      const p = await putMedia(ownerId, `results/${shot.brand_id}`, `${shot.id}.${ext}`, await r.arrayBuffer(), ct);
-      results.push({ path: p, type: f.type });
-    } catch { results.push({ url: f.url, type: f.type }); }
+    let stored = false;
+    for (let attempt = 0; attempt < 2 && !stored; attempt++) {
+      try {
+        const r = await fetch(f.url);
+        if (!r.ok) throw new Error(`fetch ${r.status}`);
+        const ct = r.headers.get("content-type") || (f.type === "video" ? "video/mp4" : "image/png");
+        const ext = f.type === "video" ? "mp4" : ct.includes("jpeg") ? "jpg" : ct.includes("webp") ? "webp" : "png";
+        const p = await putMedia(ownerId, `results/${shot.brand_id}`, `${shot.id}.${ext}`, await r.arrayBuffer(), ct);
+        results.push({ path: p, type: f.type }); stored = true;
+      } catch (e) { if (attempt === 1) console.error("store result failed", (e as Error).message); }
+    }
+    if (!stored) results.push({ url: f.url, type: f.type });
+  }
+  if (files.length && !results.some((x) => x.path)) {
+    const { data } = await sb.from("shots").update({ status: "failed", error: "Generated, but the file could not be saved to your storage. Retry (not charged twice if Higgsfield returns the same request).", updated_at: new Date().toISOString() }).eq("id", shot.id).select("*").single<ShotRow>();
+    return data!;
   }
   const { data } = await sb.from("shots").update({ status: "done", results, updated_at: new Date().toISOString() }).eq("id", shot.id).select("*").single<ShotRow>();
   if (shot.reel_id && results[0]) {

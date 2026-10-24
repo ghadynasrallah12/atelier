@@ -60,7 +60,7 @@ export function buildPrompt(spec: Spec, kind: "image" | "reel", out: { duration?
   const idx = (role: RefRole) => { const i = refs.findIndex((r) => r.role === role); return i < 0 ? 0 : i + 1; };
   const gi = idx("garment-top"), gb = idx("garment-bottom"), mi = idx("model");
   const mv = g("model"); let model = mv, dna = "";
-  if (mv.startsWith("house:")) { const m = models.find((x) => x.id === mv.slice(6)); if (m) { model = m.name; dna = m.dna; } }
+  if (mv.startsWith("house:")) { const m = models.find((x) => x.id === mv.slice(6)); if (m) { model = m.name; dna = m.dna; } else { model = ""; autos.push("model"); } }
   const expr = g("expr"), po = g("pose"), bg = g("bg"), sh = g("shoes"), ac = g("acc");
   const t = (k: SlotKey) => (spec[k] || "").trim();
   const tf = t("topFit"), tc = t("topColor"), top = t("top"), tb = t("topBrand"), bf = t("botFit"), bc = t("botColor"), bot = t("bottom"), bb = t("botBrand");
