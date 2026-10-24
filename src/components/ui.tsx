@@ -1,12 +1,14 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
-const ToastCtx = createContext<(m: string) => void>(() => {});
+type Kind = "" | "ok" | "bad";
+const ToastCtx = createContext<(m: string, kind?: Kind) => void>(() => {});
+const looksBad = (m: string) => /fail|error|reject|refused|not |can't|cannot|empty|missing|invalid|forbidden|first\./i.test(m);
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ m: string; k: Kind } | null>(null);
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const toast = useCallback((m: string) => { setMsg(m); if (t.current) clearTimeout(t.current); t.current = setTimeout(() => setMsg(null), 2800); }, []);
-  return <ToastCtx.Provider value={toast}>{children}{msg && <div className="toast" role="status">{msg}</div>}</ToastCtx.Provider>;
+  const toast = useCallback((m: string, kind?: Kind) => { setMsg({ m, k: kind ?? (looksBad(m) ? "bad" : /saved|queued|done|sent|set|added|synced|verified|removed|connected|→/i.test(m) ? "ok" : "") }); if (t.current) clearTimeout(t.current); t.current = setTimeout(() => setMsg(null), 3200); }, []);
+  return <ToastCtx.Provider value={toast}>{children}{msg && <div className={"toast " + msg.k} role="status">{msg.m}</div>}</ToastCtx.Provider>;
 }
 export const useToast = () => useContext(ToastCtx);
 

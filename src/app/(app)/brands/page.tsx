@@ -14,7 +14,7 @@ export default async function Brands() {
       <div className="grid md:grid-cols-[1fr_360px] gap-6 items-start">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
           {(brands || []).map((b, i) => (
-            <Link key={b.id} href={`/b/${b.id}/house`} className="card group grid">
+            <Link key={b.id} href={`/b/${b.id}`} className="card group grid">
               <div className="aspect-[4/3] bg-sunk overflow-hidden"><img src={`/library/${COVER[i % COVER.length]}.webp`} alt="" className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" /></div>
               <div className="p-4 grid gap-1"><div className="text-lg font-semibold">{b.name}</div><div className="lbl truncate">{b.website?.replace(/^https?:\/\//, "") || "no website"}</div></div>
             </Link>

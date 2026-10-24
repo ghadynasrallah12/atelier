@@ -4,6 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Atelier",
   description: "An AI content studio for fashion brands: on-model product shots and reels, on your own Higgsfield balance.",
+  icons: { icon: "/icon.svg" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

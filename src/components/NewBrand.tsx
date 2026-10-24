@@ -8,7 +8,7 @@ export function NewBrand() {
   const [busy, setBusy] = useState(false); const toast = useToast(); const router = useRouter();
   async function go(e: React.FormEvent) {
     e.preventDefault(); setBusy(true);
-    try { const { brand } = await api<{ brand: { id: string } }>("/api/brands/onboard", "POST", { website, name, notes }); router.push(`/b/${brand.id}/house`); }
+    try { const { brand } = await api<{ brand: { id: string } }>("/api/brands/onboard", "POST", { website, name, notes }); router.push(`/b/${brand.id}`); }
     catch (err) { toast((err as Error).message); setBusy(false); }
   }
   return (

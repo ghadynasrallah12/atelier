@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plans } from "@/components/Plans";
 import { ToastProvider } from "@/components/ui";
+import { Logo } from "@/components/Icons";
 
 const WALL = ["shots.ecu", "pose.hood", "lsrc.neon", "shots.ews", "ldir.side", "aes.cinematic", "pose.floor", "lens.uw", "lq.warm", "comp.negative", "aes.editorial", "ldir.rim", "pose.stride", "lsrc.fire", "comp.leading", "shots.worm", "aes.retro", "tex.cotton"];
 const PRICE = process.env.NEXT_PUBLIC_PRICE || "from $29 / month";
@@ -8,10 +9,10 @@ const PRICE = process.env.NEXT_PUBLIC_PRICE || "from $29 / month";
 export default function Landing() {
   return (
     <main className="min-h-screen">
-      <header className="mx-auto max-w-6xl px-4 py-5 flex items-center justify-between">
-        <div className="font-bold tracking-[.32em]">ATELIER</div>
+      <header className="sticky top-0 z-20 bg-bg/80 backdrop-blur border-b border-line"><div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+        <Logo />
         <nav className="flex gap-2"><Link className="btn ghost sm" href="/login">Sign in</Link><Link className="btn sm" href="/login?mode=signup">Get access</Link></nav>
-      </header>
+      </div></header>
       <section className="glow">
         <div className="mx-auto max-w-6xl px-4 pt-14 pb-10 grid gap-6 max-w-3xl">
           <span className="lbl">An AI content studio for fashion brands</span>
@@ -35,7 +36,18 @@ export default function Landing() {
         <div><span className="lbl">Three offers</span><h2 className="text-3xl mt-1">Pick the size of your house</h2><p className="text-muted max-w-2xl mt-2">Every offer runs generations on your own Higgsfield key (top up from $5 at open.higgsfield.ai, no mark-up, failed generations are free). The offers differ by how many brands you run and whether you want the Reels and Reach rooms.</p></div>
         <ToastProvider><Plans mode="landing" /></ToastProvider>
       </section>
-      <footer className="mx-auto max-w-6xl px-4 py-8 lbl">Atelier · built for small fashion houses</footer>
+      <section className="mx-auto max-w-6xl px-4 pb-20 grid gap-6">
+        <div><span className="lbl">Questions</span><h2 className="text-3xl mt-1">Before you ask</h2></div>
+        <div className="grid md:grid-cols-2 gap-3">
+          {[["Do I need my own photographer or model?", "No. You upload the product photo (flat, on a hanger, anything). Atelier puts it on a house model you approve once, in your light, from any angle in the library."],
+            ["What do generations cost?", "Whatever Higgsfield and Google charge, at cost: roughly $0.05–0.15 per image on Grok, about $0.13–0.24 on Nano Banana Pro (2K/4K), a few cents per second of video. You top up their balances directly; Atelier adds nothing on top."],
+            ["Can I fix a small detail without starting over?", "Yes. Open any image, tap Refine, write the one thing to change (“remove the print on the knee”), and it re-renders with everything else identical, up to 4K."],
+            ["Does the same face stay across the feed?", "Yes. A house model has a fixed DNA and an approved reference photo that rides along in every prompt."],
+            ["Can I write the prompt myself?", "Freestyle mode is a blank page: your words, your references, your engine. Nothing is added."],
+            ["Where do my images live?", "In your own private storage, with a download link for every file. Delete anything at any time."]].map(([q, a]) => <details key={q} className="card p-4"><summary className="font-semibold cursor-pointer">{q}</summary><p className="text-sm text-muted mt-2">{a}</p></details>)}
+        </div>
+      </section>
+      <footer className="border-t border-line"><div className="mx-auto max-w-6xl px-4 py-8 flex items-center justify-between gap-4 flex-wrap"><Logo size={18} /><span className="lbl">Built for small fashion houses</span><div className="flex gap-4"><Link className="lbl" href="/login">Sign in</Link><a className="lbl" href="#plans">Offers</a></div></div></footer>
     </main>
   );
 }
