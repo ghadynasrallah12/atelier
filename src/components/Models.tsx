@@ -52,37 +52,60 @@ export function Models({ brandId, models: m0, mood, candidates: c0 }: { brandId:
       toast("Reference sheet queued (2 images on your balance).");
     } catch (err) { toast((err as Error).message); }
   }
+  const [openCand, setOpenCand] = useState<string | null>(null);
   return (
     <div className="grid gap-8">
       <div><div className="sechead"><h2>House models</h2><span className="lbl">One face · same skin · same vibe</span></div>
-        <p className="intro">A house model has a fixed DNA (biology only: face, skin, hair, build) that goes into every prompt unchanged, plus a reference photo the generator copies. Pick one in the shoot builder and the same person runs across your whole feed.</p></div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
-        {models.map((m) => { const src = refUrl(m); return (
-          <article key={m.id} className="card grid grid-cols-[96px_1fr] min-w-0">
-            {src ? <img src={src} alt={m.name} className="w-24 h-32 object-cover bg-sunk" /> : <div className="w-24 h-32 bg-sunk grid place-items-center lbl text-center p-2">no reference</div>}
-            <div className="p-3 grid gap-1 content-start min-w-0">
-              <div className="flex justify-between gap-2"><h4 className="text-base">{m.name}</h4><span className="lbl">{m.look}</span></div>
-              <textarea className="bg-transparent border border-transparent focus:border-line focus:bg-sunk text-sm leading-snug resize-y min-h-20 p-1 w-full" defaultValue={m.dna} onBlur={async (e) => { if (e.target.value !== m.dna) { await sb.from("models").update({ dna: e.target.value }).eq("id", m.id); toast("DNA saved."); } }} />
-              <div className="flex gap-3 flex-wrap"><button className="btn sm accent" onClick={() => candidates(m)}>{src ? "More candidates" : "Generate candidates"}</button><button className="btn sm ghost" onClick={() => sheet(m)} disabled={!src} title={src ? "" : "Pick a reference face first"}>Reference sheet</button><DangerButton onConfirm={async () => { await sb.from("models").delete().eq("id", m.id); setModels(models.filter((x) => x.id !== m.id)); }} /></div>
+        <p className="intro">A house model is one approved face. Its fixed DNA (biology only) goes into every prompt unchanged and its reference photo rides along, so the same person runs across your whole feed. Generate candidates, approve one, then pick the model in Shoot.</p></div>
+
+      <div className="grid gap-6">
+        {models.map((m) => { const src = refUrl(m); const mine = cands.filter((c) => c.for_model === m.id); const tiles = mine.flatMap((c): { c: ShotItem; r: { url?: string } | null; i: number }[] => (c.status === "done" ? c.results.map((r, i) => ({ c, r, i })) : c.status === "failed" ? [] : [{ c, r: null, i: 0 }])); const failed = mine.find((c) => c.status === "failed"); return (
+          <article key={m.id} className="card grid md:grid-cols-[320px_1fr] min-w-0">
+            <div className="relative bg-sunk md:min-h-[420px]" style={{ aspectRatio: "3/4" }}>
+              {src ? <img src={src} alt={m.name} className="absolute inset-0 w-full h-full object-cover" /> : <div className="absolute inset-0 grid place-items-center text-center p-6"><div className="grid gap-3 justify-items-center"><span className="w-16 h-16 rounded-full bg-raise grid place-items-center text-2xl">?</span><span className="text-sm text-muted">No approved face yet.<br />Generate candidates and pick one.</span></div></div>}
+              <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent"><div className="text-xl font-semibold">{m.name}</div>{m.look && <div className="text-sm text-white/70 line-clamp-2">{m.look}</div>}</div>
+              {src && <span className="absolute top-3 left-3 pill bg-bg/80" style={{ color: "var(--good)" }}>Approved</span>}
             </div>
-            {cands.some((c) => c.for_model === m.id) && (
-              <div className="col-span-2 border-t border-line p-3 grid gap-2">
-                <span className="lbl">Candidates · tap the one you approve</span>
-                <div className="grid grid-cols-4 gap-2">{cands.filter((c) => c.for_model === m.id).flatMap((c): { c: ShotItem; r: { url?: string } | null; i: number }[] => (c.status === "done" ? c.results.map((r, i) => ({ c, r, i })) : [{ c, r: null, i: 0 }])).slice(0, 12).map(({ c, r, i }) => r?.url ? (
-                  <button key={c.id + i} type="button" className="relative aspect-[3/4] bg-sunk rounded overflow-hidden border-2 border-transparent hover:border-accent" disabled={picking === c.id + i} onClick={() => pick(m, c.id, i)}><img src={r.url} alt="" className="w-full h-full object-cover" /><span className="absolute inset-x-0 bottom-0 text-[10px] text-center py-1 bg-bg/80">{picking === c.id + i ? "…" : "Use this face"}</span></button>
-                ) : (
-                  <div key={c.id + i} className="aspect-[3/4] bg-sunk rounded grid place-items-center lbl text-center p-2" style={{ color: c.status === "failed" ? "var(--bad)" : undefined }}>{c.status === "failed" ? c.error || "failed" : c.status === "queued" ? "queued" : "generating…"}</div>
-                ))}</div>
+            <div className="p-5 grid gap-4 content-start min-w-0">
+              <div className="flex gap-2 flex-wrap items-center">
+                <button className="btn sm accent" onClick={() => candidates(m)}>{src ? "More candidates" : "Generate 4 candidates"}</button>
+                <button className="btn sm ghost" onClick={() => sheet(m)} disabled={!src} title={src ? "" : "Approve a face first"}>Reference sheet</button>
+                <DangerButton onConfirm={async () => { await sb.from("models").delete().eq("id", m.id); setModels(models.filter((x) => x.id !== m.id)); }}>Delete model</DangerButton>
               </div>
-            )}
+              <div className="grid sm:grid-cols-2 gap-3">
+                <label className="field"><span className="lbl">Name</span><input className="input text-sm" defaultValue={m.name} onBlur={async (e) => { const v = e.target.value.trim(); if (v && v !== m.name) { await sb.from("models").update({ name: v }).eq("id", m.id); setModels((x) => x.map((y) => (y.id === m.id ? { ...y, name: v } : y))); toast("Saved."); } }} /></label>
+                <label className="field"><span className="lbl">Look · 3–6 words</span><input className="input text-sm" defaultValue={m.look} maxLength={60} placeholder="Dark skin, short locs, lean" onBlur={async (e) => { const v = e.target.value.trim(); if (v !== m.look) { await sb.from("models").update({ look: v }).eq("id", m.id); setModels((x) => x.map((y) => (y.id === m.id ? { ...y, look: v } : y))); toast("Saved."); } }} /></label>
+              </div>
+              <label className="field"><span className="lbl">Fixed DNA · biology only · goes into every prompt</span>
+                <textarea className="input text-sm leading-snug resize-y min-h-[88px]" defaultValue={m.dna} onBlur={async (e) => { if (e.target.value !== m.dna) { await sb.from("models").update({ dna: e.target.value }).eq("id", m.id); setModels((x) => x.map((y) => (y.id === m.id ? { ...y, dna: e.target.value } : y))); toast("DNA saved."); } }} /></label>
+              {(tiles.length > 0 || failed) && (
+                <div className="grid gap-2">
+                  <div className="flex justify-between items-baseline"><span className="lbl">Candidates · tap the one you approve</span><span className="lbl">{tiles.filter((t) => t.r).length}</span></div>
+                  {failed && <div className="text-sm" style={{ color: "var(--bad)" }}>{failed.error}</div>}
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2">
+                    {tiles.slice(0, 16).map(({ c, r, i }) => r?.url ? (
+                      <div key={c.id + i} className="relative group rounded-lg overflow-hidden border border-line bg-sunk" style={{ aspectRatio: "3/4" }}>
+                        <button type="button" className="absolute inset-0 w-full h-full" onClick={() => setOpenCand(r.url!)} aria-label="View"><img src={r.url} alt="" className="w-full h-full object-cover" loading="lazy" /></button>
+                        <button type="button" className="btn sm accent absolute inset-x-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity" disabled={picking === c.id + i} onClick={() => pick(m, c.id, i)}>{picking === c.id + i ? "…" : "Use this face"}</button>
+                      </div>
+                    ) : (
+                      <div key={c.id + i} className="rounded-lg bg-sunk grid place-items-center lbl animate-pulse" style={{ aspectRatio: "3/4" }}>{c.status === "queued" ? "queued" : "generating…"}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </article>); })}
-        {!models.length && <div className="empty col-span-full">No house models yet. Add one below.</div>}
+        {!models.length && <div className="empty">No house models yet. Add one below: a name, a short look, and the DNA (or let Claude write it from a photo).</div>}
       </div>
+
+      {openCand && <div className="fixed inset-0 z-50 bg-black/92 grid place-items-center p-4" onClick={() => setOpenCand(null)}><img src={openCand} alt="" className="max-h-[92vh] max-w-full rounded-lg" /><button className="btn ghost sm absolute top-4 right-4">Close ✕</button></div>}
+
       <form onSubmit={add} className="panel max-w-2xl">
         <span className="lbl">Add a house model</span>
-        <div className="grid md:grid-cols-2 gap-3"><label className="field"><span className="lbl">Name</span><input value={name} onChange={(e) => setName(e.target.value)} required /></label><label className="field"><span className="lbl">Look, in a few words</span><input value={look} onChange={(e) => setLook(e.target.value)} placeholder="Shoulder-length locs" /></label></div>
-        <label className="field"><span className="lbl">Fixed DNA · biology only, under 50 words. No clothes, no background, no light.</span><textarea value={dna} onChange={(e) => setDna(e.target.value)} required /></label>
-        <div className="flex gap-3 items-center flex-wrap"><label className="btn ghost sm" htmlFor="modelUp">Reference photo</label><input id="modelUp" type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => setFile(e.target.files?.[0] || null)} /><span className="lbl">{file ? file.name : "none"}</span><button type="button" className="btn ghost sm" onClick={writeDna} disabled={!file || !!busy}>Write DNA from the photo</button></div>
+        <div className="grid md:grid-cols-2 gap-3"><label className="field"><span className="lbl">Name</span><input value={name} onChange={(e) => setName(e.target.value)} placeholder="James" required /></label><label className="field"><span className="lbl">Look · 3–6 words</span><input value={look} onChange={(e) => setLook(e.target.value)} placeholder="Dark skin, short locs, lean" maxLength={60} /></label></div>
+        <label className="field"><span className="lbl">Fixed DNA · biology only, under 50 words. No clothes, no background, no light.</span><textarea value={dna} onChange={(e) => setDna(e.target.value)} placeholder="Dark-skinned man, 25, sharp features, defined jawline, short natural black hair, lean athletic build, calm eyes." required /></label>
+        <div className="flex gap-3 items-center flex-wrap"><label className="btn ghost sm" htmlFor="modelUp">Reference photo (optional)</label><input id="modelUp" type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => setFile(e.target.files?.[0] || null)} /><span className="lbl">{file ? file.name : "none · you can generate candidates instead"}</span><button type="button" className="btn ghost sm" onClick={writeDna} disabled={!file || !!busy}>Write DNA from the photo</button></div>
         <div className="flex gap-3 items-center"><button className="btn" disabled={!!busy}>Add model</button><span className="lbl" style={{ color: "var(--accent)" }}>{busy}</span></div>
       </form>
     </div>
